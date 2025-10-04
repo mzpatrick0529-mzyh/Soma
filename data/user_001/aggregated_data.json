@@ -1,0 +1,40 @@
+{
+  "user_id": "user_001",
+  "data_sources": {
+    "chat_histories": [
+      {
+        "content": "Hey, how are you doing?",
+        "timestamp": "2024-01-01T10:00:00"
+      },
+      {
+        "content": "I'm working on an interesting project.",
+        "timestamp": "2024-01-01T10:05:00"
+      },
+      {
+        "content": "Life has been great lately!",
+        "timestamp": "2024-01-01T10:10:00"
+      }
+    ],
+    "audio_files": [],
+    "video_files": [],
+    "social_media": [
+      {
+        "platform": "twitter",
+        "data": [
+          {
+            "text": "Beautiful day today!",
+            "platform": "twitter"
+          },
+          {
+            "text": "Just finished reading an amazing book",
+            "platform": "twitter"
+          }
+        ]
+      }
+    ]
+  },
+  "total_chat_messages": 3,
+  "total_audio_files": 0,
+  "total_video_files": 0,
+  "total_social_media_entries": 1
+}

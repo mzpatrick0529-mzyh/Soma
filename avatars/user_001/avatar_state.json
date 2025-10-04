@@ -1,0 +1,48 @@
+{
+  "user_id": "user_001",
+  "avatar_name": "MyAvatar",
+  "personality_profile": {
+    "communication_style": "reserved",
+    "common_topics": [
+      "daily life",
+      "interests",
+      "emotions"
+    ],
+    "response_patterns": {
+      "greeting_style": "familiar",
+      "farewell_style": "warm",
+      "response_length": "moderate"
+    },
+    "emotional_tone": "warm"
+  },
+  "emotional_state": {
+    "bond_strength": 0.38699999999999996,
+    "interaction_count": 2,
+    "last_interaction": "2025-10-04T20:03:04.501556"
+  },
+  "memory_context": [
+    {
+      "timestamp": "2025-10-04T20:03:04.501489",
+      "interaction": {
+        "type": "text_conversation",
+        "user_message": "Hello!",
+        "avatar_response": "Hi there! It's great to hear from you. How are you doing?"
+      }
+    },
+    {
+      "timestamp": "2025-10-04T20:03:04.501547",
+      "interaction": {
+        "type": "text_conversation",
+        "user_message": "How are you?",
+        "avatar_response": "I'm doing well, thanks for asking! I've been thinking about you. What's new with you?"
+      }
+    },
+    {
+      "timestamp": "2025-10-04T20:03:04.501634",
+      "interaction": {
+        "type": "proactive_update",
+        "message": "I've been reflecting on our recent conversations and wanted to share some thoughts with you. Specifically about recent developments."
+      }
+    }
+  ]
+}
