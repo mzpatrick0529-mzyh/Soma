@@ -1,0 +1,13 @@
+{
+  "source": "instagram",
+  "version": "1.0.0",
+  "lastUpdated": null,
+  "totalDocuments": 0,
+  "decryptionStatus": "not_required",
+  "metadata": {
+    "encrypted": false,
+    "fileTypes": ["JSON", "HTML", "Media"],
+    "notes": "Plain text export from Instagram"
+  },
+  "files": []
+}

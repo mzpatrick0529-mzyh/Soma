@@ -1,0 +1,231 @@
+import { create } from 'zustand';
+
+interface Memory {
+  id: string;
+  type: 'text' | 'image' | 'video' | 'website' | 'other';
+  content: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  timestamp: Date;
+  likes: number;
+  comments: number;
+}
+
+interface Chat {
+  id: string;
+  name: string;
+  lastMessage: string;
+  timestamp: Date;
+  unread: number;
+  avatar: string;
+  isGroup: boolean;
+  isAI?: boolean;
+}
+
+interface Post {
+  id: string;
+  author: string;
+  authorAvatar: string;
+  content: string;
+  imageUrl?: string;
+  timestamp: Date;
+  likes: number;
+  comments: number;
+  liked: boolean;
+}
+
+interface AIAvatar {
+  id: string;
+  name: string;
+  description: string;
+  creator: string;
+  avatar: string;
+  price: number;
+  isPremium: boolean;
+  downloads: number;
+  rating: number;
+  access: 'public' | 'friends';
+}
+
+interface AppState {
+  currentTab: 'memories' | 'chat' | 'feed' | 'marketplace' | 'settings';
+  memories: Memory[];
+  chats: Chat[];
+  posts: Post[];
+  aiAvatars: AIAvatar[];
+  showPopup: boolean;
+  popupType: string | null;
+  
+  setCurrentTab: (tab: 'memories' | 'chat' | 'feed' | 'marketplace' | 'settings') => void;
+  addMemory: (memory: Memory) => void;
+  addChat: (chat: Chat) => void;
+  addPost: (post: Post) => void;
+  addAIAvatar: (avatar: AIAvatar) => void;
+  togglePopup: (type: string | null) => void;
+  likePost: (postId: string) => void;
+}
+
+// Mock data
+const mockMemories: Memory[] = [
+  {
+    id: '1',
+    type: 'image',
+    content: 'Beautiful sunset at the beach',
+    imageUrl: '/assets/memory1.jpg',
+    timestamp: new Date('2025-10-01'),
+    likes: 42,
+    comments: 8
+  },
+  {
+    id: '2',
+    type: 'text',
+    content: 'Just finished reading an amazing book about AI and consciousness. The future is fascinating!',
+    timestamp: new Date('2025-09-28'),
+    likes: 23,
+    comments: 5
+  },
+  {
+    id: '3',
+    type: 'video',
+    content: 'My morning workout routine',
+    videoUrl: '/assets/workout.mp4',
+    timestamp: new Date('2025-09-25'),
+    likes: 67,
+    comments: 12
+  }
+];
+
+const mockChats: Chat[] = [
+  {
+    id: '1',
+    name: 'Sarah Johnson',
+    lastMessage: 'See you tomorrow!',
+    timestamp: new Date('2025-10-04T21:30:00'),
+    unread: 2,
+    avatar: '/assets/avatar1.jpg',
+    isGroup: false
+  },
+  {
+    id: '2',
+    name: 'Design Team',
+    lastMessage: 'John: The mockups are ready',
+    timestamp: new Date('2025-10-04T20:15:00'),
+    unread: 5,
+    avatar: '/assets/group1.jpg',
+    isGroup: true
+  },
+  {
+    id: '3',
+    name: 'AI Assistant Pro',
+    lastMessage: 'How can I help you today?',
+    timestamp: new Date('2025-10-04T19:45:00'),
+    unread: 0,
+    avatar: '/assets/ai-avatar1.jpg',
+    isGroup: false,
+    isAI: true
+  }
+];
+
+const mockPosts: Post[] = [
+  {
+    id: '1',
+    author: 'Emma Wilson',
+    authorAvatar: '/assets/user1.jpg',
+    content: 'Amazing day at the conference! Learned so much about the future of AI.',
+    imageUrl: '/assets/post1.jpg',
+    timestamp: new Date('2025-10-04T18:30:00'),
+    likes: 124,
+    comments: 18,
+    liked: false
+  },
+  {
+    id: '2',
+    author: 'Michael Chen',
+    authorAvatar: '/assets/user2.jpg',
+    content: 'New project launch coming soon! Stay tuned 🚀',
+    timestamp: new Date('2025-10-04T16:20:00'),
+    likes: 89,
+    comments: 12,
+    liked: true
+  }
+];
+
+const mockAIAvatars: AIAvatar[] = [
+  {
+    id: '1',
+    name: 'Empathy AI',
+    description: 'A compassionate AI trained on emotional intelligence and supportive conversations',
+    creator: 'Dr. Sarah Lee',
+    avatar: '/assets/ai1.jpg',
+    price: 9.99,
+    isPremium: true,
+    downloads: 12500,
+    rating: 4.8,
+    access: 'public'
+  },
+  {
+    id: '2',
+    name: 'Code Mentor',
+    description: 'Expert programming assistant specialized in multiple languages',
+    creator: 'Tech Guild',
+    avatar: '/assets/ai2.jpg',
+    price: 0,
+    isPremium: false,
+    downloads: 45000,
+    rating: 4.9,
+    access: 'public'
+  },
+  {
+    id: '3',
+    name: 'Creative Writer',
+    description: 'AI trained on creative writing, storytelling, and content generation',
+    creator: 'Creative Studio',
+    avatar: '/assets/ai3.jpg',
+    price: 4.99,
+    isPremium: true,
+    downloads: 8900,
+    rating: 4.6,
+    access: 'friends'
+  }
+];
+
+export const useAppStore = create<AppState>((set) => ({
+  currentTab: 'memories',
+  memories: mockMemories,
+  chats: mockChats,
+  posts: mockPosts,
+  aiAvatars: mockAIAvatars,
+  showPopup: false,
+  popupType: null,
+  
+  setCurrentTab: (tab) => set({ currentTab: tab }),
+  
+  addMemory: (memory) => set((state) => ({
+    memories: [memory, ...state.memories]
+  })),
+  
+  addChat: (chat) => set((state) => ({
+    chats: [chat, ...state.chats]
+  })),
+  
+  addPost: (post) => set((state) => ({
+    posts: [post, ...state.posts]
+  })),
+  
+  addAIAvatar: (avatar) => set((state) => ({
+    aiAvatars: [avatar, ...state.aiAvatars]
+  })),
+  
+  togglePopup: (type) => set((state) => ({
+    showPopup: type !== null,
+    popupType: type
+  })),
+  
+  likePost: (postId) => set((state) => ({
+    posts: state.posts.map(post =>
+      post.id === postId
+        ? { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 }
+        : post
+    )
+  }))
+}));

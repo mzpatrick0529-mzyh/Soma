@@ -1,0 +1,14 @@
+{
+  "source": "wechat",
+  "version": "1.0.0",
+  "lastUpdated": null,
+  "totalDocuments": 0,
+  "decryptionStatus": "pending",
+  "metadata": {
+    "encrypted": true,
+    "requiresKey": true,
+    "fileTypes": ["ChatPackage", "Media", "Index"],
+    "notes": "Requires WeChat database decryption key"
+  },
+  "files": []
+}

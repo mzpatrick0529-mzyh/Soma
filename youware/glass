@@ -1,0 +1,86 @@
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+
+interface PopupOption {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}
+
+interface GlassmorphismPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  options: PopupOption[];
+  position?: 'bottom-right' | 'top-right';
+}
+
+export default function GlassmorphismPopup({
+  isOpen,
+  onClose,
+  options,
+  position = 'bottom-right'
+}: GlassmorphismPopupProps) {
+  const positionStyles = position === 'bottom-right'
+    ? 'bottom-24 right-4'
+    : 'top-20 right-4';
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/20 z-40"
+          />
+          
+          {/* Popup */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className={`fixed ${positionStyles} w-64 z-50`}
+          >
+            <div className="backdrop-blur-xl bg-white/80 rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
+                <h3 className="text-sm font-semibold text-gray-800">Choose an option</h3>
+                <button
+                  onClick={onClose}
+                  className="p-1 rounded-full hover:bg-gray-200/50 transition-colors"
+                >
+                  <X size={16} className="text-gray-600" />
+                </button>
+              </div>
+              
+              {/* Options */}
+              <div className="p-2">
+                {options.map((option, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      option.onClick();
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/60 transition-all duration-200 group"
+                  >
+                    <div className="text-gray-600 group-hover:text-gray-800 transition-colors">
+                      {option.icon}
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                      {option.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

@@ -1,0 +1,55 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# NPM cache directories
+.npm-cache/
+Self_AI_Agent/.npm-cache/
+.npmrc
+Self_AI_Agent/.npmrc
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Uploaded files and extracted data
+uploads/
+extracted_*/
+memories/wechat/database_export/
+Self_AI_Agent/uploads/
+*.zip
+files-*.zip
+
+# Database files (too large for git)
+*.db
+*.db-shm
+*.db-wal
+self_agent.db*
+
+# NPM cache (large)
+.npm-cache/
+*.tgz
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python

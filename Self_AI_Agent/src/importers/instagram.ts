@@ -1,0 +1,205 @@
+/**
+ * Instagram Data Importer
+ * 支持解析 Instagram 导出的帖子、消息、故事、媒体等
+ */
+import fg from "fast-glob";
+import fs from "fs";
+import path from "path";
+import { ensureUser, insertDocument, insertChunk, insertVector } from "../db";
+import { stripHtml, normalizeText } from "../utils/text";
+import { chunkText } from "../pipeline/chunk";
+import { embedText } from "../pipeline/embeddings";
+
+function uid(prefix = "id"): string {
+  return `${prefix}_${Math.random().toString(36).slice(2)}${Date.now()}`;
+}
+
+type ImportStats = { files: number; docs: number; chunks: number };
+
+export async function importInstagramData(userId: string, dataDir: string): Promise<ImportStats> {
+  ensureUser(userId);
+  
+  // Instagram 导出通常是 JSON 格式
+  const patterns = [
+    path.join(dataDir, "**/*.{json,html,txt}")
+  ];
+  
+  const entries = await fg(patterns, { dot: false, onlyFiles: true, followSymbolicLinks: false });
+  let stats: ImportStats = { files: 0, docs: 0, chunks: 0 };
+
+  for (const file of entries) {
+    stats.files += 1;
+    const ext = path.extname(file).toLowerCase();
+    
+    try {
+      let content = "";
+      let title = path.basename(file);
+      const source = detectInstagramSource(file);
+      const type = ext.replace(".", "");
+
+      const raw = fs.readFileSync(file, "utf8");
+      
+      if (ext === ".json") {
+        try {
+          const obj = JSON.parse(raw);
+          content = extractInstagramJson(obj);
+        } catch {
+          content = raw;
+        }
+      } else if (ext === ".html") {
+        content = stripHtml(raw);
+      } else {
+        content = raw;
+      }
+
+      content = normalizeText(content);
+      if (!content) continue;
+
+      const docId = uid("doc");
+      insertDocument({ 
+        id: docId, 
+        user_id: userId, 
+        source: "instagram", // 统一使用 instagram 作为主分类
+        type, 
+        title, 
+        content, 
+        metadata: { path: file, platform: "instagram", subSource: source } 
+      });
+      stats.docs += 1;
+
+      const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
+      chunks.forEach((text, idx) => {
+        const chunkId = uid("chk");
+        insertChunk({ 
+          id: chunkId, 
+          doc_id: docId, 
+          user_id: userId, 
+          idx, 
+          text, 
+          metadata: { path: file, platform: "instagram" } 
+        });
+        const vec = embedText(text);
+        insertVector(chunkId, userId, vec);
+        stats.chunks += 1;
+      });
+    } catch (e) {
+      console.warn(`[instagram-import] skip ${file}:`, e);
+      continue;
+    }
+  }
+
+  return stats;
+}
+
+function detectInstagramSource(filePath: string): string {
+  const p = filePath.toLowerCase();
+  const filename = path.basename(p);
+  
+  // Instagram 数据导出的典型目录结构
+  if (p.includes("messages") || p.includes("direct") || filename.includes("message")) {
+    return "instagram-messages";
+  }
+  if (p.includes("posts") || p.includes("media") || filename.includes("posts")) {
+    return "instagram-posts";
+  }
+  if (p.includes("stories") || filename.includes("stories")) {
+    return "instagram-stories";
+  }
+  if (p.includes("comments") || filename.includes("comments")) {
+    return "instagram-comments";
+  }
+  if (p.includes("liked") || p.includes("saved")) {
+    return "instagram-liked";
+  }
+  if (p.includes("followers") || p.includes("following")) {
+    return "instagram-connections";
+  }
+  if (p.includes("profile")) {
+    return "instagram-profile";
+  }
+  
+  return "instagram";
+}
+
+function extractInstagramJson(obj: any): string {
+  if (Array.isArray(obj)) {
+    return obj.map((x) => extractInstagramJson(x)).join("\n\n");
+  }
+  
+  if (obj && typeof obj === "object") {
+    const lines: string[] = [];
+    
+    // Instagram 帖子格式
+    if (obj.media) {
+      // 这是一个包含多个帖子的对象
+      return extractInstagramJson(obj.media);
+    }
+    
+    // 单个帖子
+    if (obj.caption) {
+      lines.push(`Caption: ${obj.caption}`);
+    }
+    
+    // 消息格式
+    if (obj.participants && obj.messages) {
+      lines.push(`Conversation with: ${obj.participants?.join(", ") || "Unknown"}`);
+      if (Array.isArray(obj.messages)) {
+        for (const msg of obj.messages) {
+          const sender = msg.sender_name || "Unknown";
+          const content = msg.content || msg.text || "";
+          const timestamp = msg.timestamp_ms 
+            ? new Date(msg.timestamp_ms).toLocaleString() 
+            : "";
+          
+          if (content) {
+            lines.push(`[${timestamp}] ${sender}: ${content}`);
+          }
+        }
+      }
+    }
+    
+    // 单条消息
+    if (obj.sender_name && (obj.content || obj.text)) {
+      const sender = obj.sender_name;
+      const content = obj.content || obj.text;
+      const timestamp = obj.timestamp_ms 
+        ? new Date(obj.timestamp_ms).toLocaleString() 
+        : "";
+      lines.push(`[${timestamp}] ${sender}: ${content}`);
+    }
+    
+    // 通用内容提取
+    const contentFields = [
+      "title", "text", "content", "description", 
+      "caption", "story_text", "name", "username"
+    ];
+    
+    for (const field of contentFields) {
+      if (obj[field] && typeof obj[field] === "string") {
+        lines.push(`${field}: ${obj[field]}`);
+      }
+    }
+    
+    // 提取时间信息
+    if (obj.taken_at) {
+      const date = new Date(obj.taken_at * 1000).toLocaleString();
+      lines.push(`Date: ${date}`);
+    }
+    
+    if (lines.length) return lines.join("\n");
+    
+    // 兜底：提取所有简单字段
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (typeof val === "string" && val.length > 0 && val.length < 1000) {
+        lines.push(`${key}: ${val}`);
+      } else if (typeof val === "number") {
+        lines.push(`${key}: ${val}`);
+      }
+    }
+    
+    if (lines.length) return lines.join("\n");
+  }
+  
+  return typeof obj === "string" ? obj : JSON.stringify(obj);
+}

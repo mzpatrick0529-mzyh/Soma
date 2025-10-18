@@ -1,0 +1,16 @@
+.typing-dots span {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: rgba(107,114,128,1); /* gray-500 */
+  animation: bounce 1s infinite ease-in-out;
+}
+.typing-dots .dot-delay-0 { animation-delay: 0ms; }
+.typing-dots .dot-delay-150 { animation-delay: 150ms; }
+.typing-dots .dot-delay-300 { animation-delay: 300ms; }
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.9; }
+  50% { transform: translateY(-6px); opacity: 1; }
+}
