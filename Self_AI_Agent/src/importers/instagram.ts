@@ -44,6 +44,7 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
           const obj = JSON.parse(raw);
           content = extractInstagramJson(obj);
         } catch {
+          // keep raw on parse failure
           content = raw;
         }
       } else if (ext === ".html") {
@@ -56,14 +57,19 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
       if (!content) continue;
 
       const docId = uid("doc");
+      // 为 title 添加明确的来源标识，便于 AI 识别
+      const displayTitle = source === "instagram-messages" 
+        ? `Instagram Message: ${title}`
+        : `Instagram ${source.replace("instagram-", "")}: ${title}`;
+      
       insertDocument({ 
         id: docId, 
         user_id: userId, 
         source: "instagram", // 统一使用 instagram 作为主分类
         type, 
-        title, 
+        title: displayTitle, 
         content, 
-        metadata: { path: file, platform: "instagram", subSource: source } 
+        metadata: { path: file, platform: "Instagram", subSource: source, dataSource: "Instagram Export" } 
       });
       stats.docs += 1;
 
@@ -76,7 +82,13 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
           user_id: userId, 
           idx, 
           text, 
-          metadata: { path: file, platform: "instagram" } 
+          metadata: { 
+            path: file, 
+            platform: "Instagram", 
+            source: "instagram",
+            dataSource: "Instagram Export",
+            subSource: source 
+          } 
         });
         const vec = embedText(text);
         insertVector(chunkId, userId, vec);
@@ -121,7 +133,7 @@ function detectInstagramSource(filePath: string): string {
   return "instagram";
 }
 
-function extractInstagramJson(obj: any): string {
+export function extractInstagramJson(obj: any): string {
   if (Array.isArray(obj)) {
     return obj.map((x) => extractInstagramJson(x)).join("\n\n");
   }
@@ -142,17 +154,57 @@ function extractInstagramJson(obj: any): string {
     
     // 消息格式
     if (obj.participants && obj.messages) {
-      lines.push(`Conversation with: ${obj.participants?.join(", ") || "Unknown"}`);
+      // participants can be objects: { name: "..." }
+      const participants = Array.isArray(obj.participants)
+        ? obj.participants
+            .map((p: any) => (typeof p === "string" ? p : p?.name || p?.username))
+            .filter(Boolean)
+        : [];
+      lines.push(`Conversation with: ${participants.length ? participants.join(", ") : "Unknown"}`);
       if (Array.isArray(obj.messages)) {
-        for (const msg of obj.messages) {
-          const sender = msg.sender_name || "Unknown";
-          const content = msg.content || msg.text || "";
+        // Sort messages chronologically (oldest first)
+        const sortedMessages = [...obj.messages].sort((a, b) => 
+          (a.timestamp_ms || 0) - (b.timestamp_ms || 0)
+        );
+        
+        for (const msg of sortedMessages) {
+          const sender = msg.sender_name || msg.actor || "Unknown";
+          let content = "";
+          
+          // Instagram export sometimes uses arrays for text/content parts
+          if (typeof msg.content === "string") content = msg.content;
+          else if (Array.isArray(msg.content)) content = msg.content.map((x: any) => (typeof x === "string" ? x : x?.text || "")).join(" ");
+          else if (typeof msg.text === "string") content = msg.text;
+          else if (Array.isArray(msg.text)) content = msg.text.map((x: any) => (typeof x === "string" ? x : x?.text || "")).join(" ");
+
+          // Handle share/link
+          if (!content && msg.share) {
+            const link = msg.share.link || msg.share.original_content_url || "";
+            if (link) content = `[shared: ${link}]`;
+          }
+
+          // Attachments summary
+          if (!content && Array.isArray(msg.attachments) && msg.attachments.length) {
+            const att = msg.attachments
+              .map((a: any) => a?.file || a?.uri || a?.link || a?.type)
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(", ");
+            if (att) content = `[attachments: ${att}]`;
+          }
+          
+          // Reactions
+          const reactions = Array.isArray(msg.reactions) 
+            ? msg.reactions.map((r: any) => r.reaction || r.emoji).filter(Boolean).join(" ")
+            : "";
+          
           const timestamp = msg.timestamp_ms 
             ? new Date(msg.timestamp_ms).toLocaleString() 
             : "";
           
           if (content) {
-            lines.push(`[${timestamp}] ${sender}: ${content}`);
+            const line = `[${timestamp}] ${sender}: ${content}`;
+            lines.push(reactions ? `${line} ${reactions}` : line);
           }
         }
       }
@@ -161,7 +213,7 @@ function extractInstagramJson(obj: any): string {
     // 单条消息
     if (obj.sender_name && (obj.content || obj.text)) {
       const sender = obj.sender_name;
-      const content = obj.content || obj.text;
+      const content = typeof obj.content === "string" ? obj.content : (typeof obj.text === "string" ? obj.text : "");
       const timestamp = obj.timestamp_ms 
         ? new Date(obj.timestamp_ms).toLocaleString() 
         : "";
@@ -177,6 +229,13 @@ function extractInstagramJson(obj: any): string {
     for (const field of contentFields) {
       if (obj[field] && typeof obj[field] === "string") {
         lines.push(`${field}: ${obj[field]}`);
+      }
+      if (Array.isArray(obj[field])) {
+        const s = obj[field]
+          .map((x: any) => (typeof x === "string" ? x : x?.text || x?.name || ""))
+          .filter(Boolean)
+          .join(" ");
+        if (s) lines.push(`${field}: ${s}`);
       }
     }
     

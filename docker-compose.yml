@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ./Self_AI_Agent
+      dockerfile: Dockerfile
+    container_name: soma-backend
+    ports:
+      - "8787:8787"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./Self_AI_Agent/self_agent.db:/app/self_agent.db
+      - ./Self_AI_Agent/uploads:/app/uploads
+      - ./Self_AI_Agent/memories:/app/memories
+    restart: unless-stopped
+    networks:
+      - soma-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8787/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # 前端服务
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: soma-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - soma-network
+
+networks:
+  soma-network:
+    driver: bridge
+
+volumes:
+  db-data:
+  uploads-data:
+  memories-data:

@@ -283,6 +283,15 @@ export function getUserStats(userId: string) {
   };
 }
 
+// Get list of available data sources for a user (for persona prompt)
+export function getUserAvailableSources(userId: string): string[] {
+  const db = getDB();
+  const rows = db
+    .prepare("SELECT DISTINCT COALESCE(source, 'unknown') AS source FROM documents WHERE user_id = ?")
+    .all(userId) as Array<{ source: string }>;
+  return rows.map(r => r.source).filter(s => s && s !== 'unknown');
+}
+
 export function migrateUserData(fromUserId: string, toUserId: string) {
   const db = getDB();
   const tx = db.transaction(() => {

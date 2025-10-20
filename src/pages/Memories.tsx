@@ -219,7 +219,7 @@ const Memories = () => {
             ) : (
               <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {timeline && timeline.length > 0 ? (
-                  <MemoriesTimeline sections={timeline} />
+                  <MemoriesTimeline sections={timeline} userId={user?.email || user?.id || "default"} />
                 ) : (
                   <div className="space-y-4">
                     {(memories.length > 0 ? memories : sampleMemories).map((memory) => (

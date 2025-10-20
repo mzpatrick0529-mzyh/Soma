@@ -1,7 +1,9 @@
 // API配置和基础请求函数
 import { toast } from "sonner";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const RAW_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "";
+const NORMALIZED_BASE = RAW_BASE.replace(/\/$/, "");
+const API_BASE_URL = "/api";
 
 interface ApiResponse<T> {
   data: T;
@@ -45,7 +47,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = this.baseURL ? `${this.baseURL}${endpoint}` : endpoint;
     const headers = {
       ...this.defaultHeaders,
       ...this.getAuthHeader(),
@@ -304,6 +306,10 @@ export const API_ENDPOINTS = {
     FOLLOWING: '/social/following',
     NOTIFICATIONS: '/social/notifications',
   },
+  // Self Agent
+  SELF_AGENT: {
+    GENERATE_CHAT: '/self-agent/generate/chat',
+  }
 };
 
 export default apiClient;

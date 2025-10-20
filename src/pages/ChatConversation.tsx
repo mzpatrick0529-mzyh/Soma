@@ -144,11 +144,17 @@ export default function ChatConversation() {
         setMessages(prev => [...prev, aiMessage]);
       }, 300);
 
+      // 根据输入内容判断是否优先召回 Instagram 数据
+      const lower = text.toLowerCase();
+      const shouldFocusInstagram = /\binstagram\b|\big\b|\bins\b|私信|聊天|对话/.test(lower);
+      const sources = shouldFocusInstagram ? ["instagram"] : undefined;
+
       // 使用流式 API
       await streamChat({
         userId: user?.email || user?.id || "my_google_user",
         history,
         hint: contact.id === "self" ? undefined : `模拟与${contact.name}的对话`,
+        sources,
         onChunk: (chunk) => {
           setMessages(prev => prev.map(m =>
             m.id === aiMessageId

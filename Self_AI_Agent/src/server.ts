@@ -17,7 +17,7 @@ import { GeminiProvider } from "./providers/gemini";
 import { GeminiStreamProvider } from "./providers/gemini-stream";
 import { startTraining, getJob } from "./pipeline/train";
 import { MemoryItem, PersonaProfile, ChatGenerateInput, PostGenerateInput } from "./types";
-import { getDB, searchByKeyword, getChunksByUser, getUserStats, migrateUserData, getAuthUser, upsertAuthUser, updateAuthProfile, ensureUser, insertDocument, insertChunk, insertVector } from "./db";
+import { getDB, searchByKeyword, getChunksByUser, getUserStats, getUserAvailableSources, migrateUserData, getAuthUser, upsertAuthUser, updateAuthProfile, ensureUser, insertDocument, insertChunk, insertVector } from "./db";
 import crypto from "crypto";
 import { importGoogleTakeout } from "./importers/google";
 import { retrieveRelevant, buildContext, retrieveRelevantHybrid } from "./pipeline/rag";
@@ -42,6 +42,8 @@ import {
   revokeGoogleConnection,
 } from "./services/googleOAuth";
 import { syncAllGoogleServices } from "./services/googleSync";
+import { extractInstagramJson } from "./importers/instagram";
+import { chunkText } from "./pipeline/chunk";
 // iCloud 服务按需动态加载，避免在未安装依赖时阻塞启动
 
 const app = express();
@@ -51,14 +53,14 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
-// Google Data Import Routes
-app.use("/api/google-import", uploadRouter);
+const apiRouter = express.Router();
 
-// Decryption Service Routes
-app.use("/api/decrypt", decryptRouter);
+// Mount all routes onto apiRouter
+apiRouter.use("/google-import", uploadRouter);
+apiRouter.use("/decrypt", decryptRouter);
 
 // === iCloud Connect & Sync ===
-app.post("/api/icloud/connect", async (req: Request, res: Response) => {
+apiRouter.post("/icloud/connect", async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string(), appleId: z.string(), appPassword: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -71,7 +73,7 @@ app.post("/api/icloud/connect", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/api/icloud/status", (req: Request, res: Response) => {
+apiRouter.get("/icloud/status", (req: Request, res: Response) => {
   const userId = String(req.query.userId || "");
   if (!userId) return res.status(400).json({ error: "missing userId" });
   import("./services/icloud").then(mod => {
@@ -79,7 +81,7 @@ app.get("/api/icloud/status", (req: Request, res: Response) => {
   }).catch((e: any) => res.status(500).json({ error: String(e?.message || e) }));
 });
 
-app.post("/api/icloud/sync/mail", async (req: Request, res: Response) => {
+apiRouter.post("/icloud/sync/mail", async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string(), maxMessages: z.number().optional() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -92,7 +94,7 @@ app.post("/api/icloud/sync/mail", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/icloud/sync/calendar", async (req: Request, res: Response) => {
+apiRouter.post("/icloud/sync/calendar", async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -105,7 +107,7 @@ app.post("/api/icloud/sync/calendar", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/icloud/sync/contacts", async (req: Request, res: Response) => {
+apiRouter.post("/icloud/sync/contacts", async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -129,7 +131,7 @@ const mediaUpload = multer({
   limits: { fileSize: MEDIA_MAX_BYTES },
 });
 
-app.post("/api/media/import", mediaUpload.single("file"), async (req: Request, res: Response) => {
+apiRouter.post("/media/import", mediaUpload.single("file"), async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -151,7 +153,7 @@ app.post("/api/media/import", mediaUpload.single("file"), async (req: Request, r
 });
 
 // 批量媒体导入（多文件）
-app.post("/api/media/import-multiple", mediaUpload.array("files", 200), async (req: Request, res: Response) => {
+apiRouter.post("/media/import-multiple", mediaUpload.array("files", 200), async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -177,7 +179,7 @@ app.post("/api/media/import-multiple", mediaUpload.array("files", 200), async (r
 });
 
 // 压缩包导入（zip/tgz）：解压后调用通用导入器，自动识别目录中的媒体文件
-app.post("/api/media/import-archive", mediaUpload.single("file"), async (req: Request, res: Response) => {
+apiRouter.post("/media/import-archive", mediaUpload.single("file"), async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
@@ -239,7 +241,7 @@ function hashPassword(pw: string, salt?: string) {
   return { hash, salt: s };
 }
 
-app.post("/auth/register", async (req: Request, res: Response) => {
+apiRouter.post("/auth/register", async (req: Request, res: Response) => {
   const Body = z.object({ email: z.string().email(), password: z.string().min(6), name: z.string().optional(), username: z.string().optional() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ success: false, message: "invalid body" });
@@ -252,7 +254,7 @@ app.post("/auth/register", async (req: Request, res: Response) => {
   res.json({ success: true, data: { user: { id: email, name: name || email.split("@")[0], email, avatar: exists?.avatar }, token } });
 });
 
-app.post("/auth/login", async (req: Request, res: Response) => {
+apiRouter.post("/auth/login", async (req: Request, res: Response) => {
   const Body = z.object({ email: z.string().email(), password: z.string().min(6) });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ success: false, message: "invalid body" });
@@ -265,11 +267,11 @@ app.post("/auth/login", async (req: Request, res: Response) => {
   res.json({ success: true, data: { user: { id: email, name: user.name || email.split("@")[0], email, avatar: user.avatar }, token } });
 });
 
-app.post("/auth/logout", (_req: Request, res: Response) => {
+apiRouter.post("/auth/logout", (_req: Request, res: Response) => {
   res.json({ success: true, data: {} });
 });
 
-app.get("/auth/profile", (req: Request, res: Response) => {
+apiRouter.get("/auth/profile", (req: Request, res: Response) => {
   const auth = String(req.headers.authorization || "");
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const payload = token ? verifyToken(token) : null;
@@ -279,7 +281,7 @@ app.get("/auth/profile", (req: Request, res: Response) => {
   res.json({ success: true, data: { id: user.email, name: user.name || user.email.split("@")[0], email: user.email, avatar: user.avatar } });
 });
 
-app.put("/user/profile", (req: Request, res: Response) => {
+apiRouter.put("/user/profile", (req: Request, res: Response) => {
   const auth = String(req.headers.authorization || "");
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const payload = token ? verifyToken(token) : null;
@@ -302,7 +304,7 @@ const streamProvider = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
 // init DB
 getDB();
 
-app.post("/api/self-agent/train", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/train", async (req: Request, res: Response) => {
   const Body = z.object({
     userId: z.string(),
     memories: z.array(MemoryItem),
@@ -330,14 +332,14 @@ app.post("/api/self-agent/train", async (req: Request, res: Response) => {
   res.json(job);
 });
 
-app.get("/api/self-agent/status/:jobId", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/status/:jobId", (req: Request, res: Response) => {
   const job = getJob(req.params.jobId);
   if (!job) return res.status(404).json({ error: "job not found" });
   res.json(job);
 });
 
 // Get user stats
-app.get("/api/self-agent/stats", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/stats", (req: Request, res: Response) => {
   const auth = String(req.headers.authorization || "");
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const payload = token ? verifyToken(token) : null;
@@ -353,7 +355,7 @@ app.get("/api/self-agent/stats", (req: Request, res: Response) => {
 });
 
 // Memories timeline (grouped by day, newest first)
-app.get("/api/self-agent/memories/timeline", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/timeline", (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -430,7 +432,7 @@ app.get("/api/self-agent/memories/timeline", (req: Request, res: Response) => {
 });
 
 // Folder list grouped by source/type with small previews
-app.get("/api/self-agent/memories/folders", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/folders", (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -472,7 +474,7 @@ app.get("/api/self-agent/memories/folders", (req: Request, res: Response) => {
 });
 
 // Items inside a folder (by source), grouped by date
-app.get("/api/self-agent/memories/folder/items", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/folder/items", (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -484,7 +486,7 @@ app.get("/api/self-agent/memories/folder/items", (req: Request, res: Response) =
     const limit = Math.min(parseInt(String(req.query.limit || "100"), 10) || 100, 500);
     const db = getDB();
     const rows = db.prepare(
-      `SELECT c.id, c.text, c.created_at, d.type AS doc_type, d.title AS doc_title
+      `SELECT c.id, c.doc_id, c.text, c.created_at, d.type AS doc_type, d.title AS doc_title
        FROM chunks c
        LEFT JOIN documents d ON d.id = c.doc_id
        WHERE c.user_id = ? AND COALESCE(d.source,'unknown') = ?
@@ -505,6 +507,7 @@ app.get("/api/self-agent/memories/folder/items", (req: Request, res: Response) =
       }
       groups[key].items.push({
         id: r.id,
+        docId: r.doc_id,
         createdAt: r.created_at,
         category: source,
         type: r.doc_type || "text",
@@ -519,8 +522,103 @@ app.get("/api/self-agent/memories/folder/items", (req: Request, res: Response) =
   }
 });
 
+// Get full document content by document ID
+apiRouter.get("/self-agent/memories/document/:docId", (req: Request, res: Response) => {
+  try {
+    const auth = String(req.headers.authorization || "");
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    const payload = token ? verifyToken(token) : null;
+    const qp = String(req.query.userId || "");
+    const userId = (payload?.email as string | undefined) || qp;
+    const { docId } = req.params;
+    
+    if (!userId || !docId) return res.status(400).json({ error: "missing userId or docId" });
+    
+    const db = getDB();
+    const doc = db.prepare(
+      `SELECT id, user_id, source, type, title, content, metadata, created_at
+       FROM documents
+       WHERE id = ? AND user_id = ?`
+    ).get(docId, userId) as any;
+    
+    if (!doc) return res.status(404).json({ error: "document not found" });
+    
+    let meta = null;
+    try { meta = doc.metadata ? JSON.parse(doc.metadata) : null; } catch {}
+    
+    res.json({
+      id: doc.id,
+      source: doc.source,
+      type: doc.type,
+      title: doc.title,
+      content: doc.content,
+      metadata: meta,
+      createdAt: doc.created_at,
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
+// Get chunk details with context
+apiRouter.get("/self-agent/memories/chunk/:chunkId", (req: Request, res: Response) => {
+  try {
+    const auth = String(req.headers.authorization || "");
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    const payload = token ? verifyToken(token) : null;
+    const qp = String(req.query.userId || "");
+    const userId = (payload?.email as string | undefined) || qp;
+    const { chunkId } = req.params;
+    
+    if (!userId || !chunkId) return res.status(400).json({ error: "missing userId or chunkId" });
+    
+    const db = getDB();
+    const chunk = db.prepare(
+      `SELECT c.id, c.doc_id, c.idx, c.text, c.metadata, c.created_at,
+              d.source, d.type, d.title, d.content AS doc_content
+       FROM chunks c
+       LEFT JOIN documents d ON d.id = c.doc_id
+       WHERE c.id = ? AND c.user_id = ?`
+    ).get(chunkId, userId) as any;
+    
+    if (!chunk) return res.status(404).json({ error: "chunk not found" });
+    
+    // Get surrounding chunks for context
+    const siblings = db.prepare(
+      `SELECT id, idx, text
+       FROM chunks
+       WHERE doc_id = ? AND user_id = ?
+       ORDER BY idx ASC`
+    ).all(chunk.doc_id, userId) as Array<any>;
+    
+    let meta = null;
+    try { meta = chunk.metadata ? JSON.parse(chunk.metadata) : null; } catch {}
+    
+    res.json({
+      id: chunk.id,
+      docId: chunk.doc_id,
+      idx: chunk.idx,
+      text: chunk.text,
+      metadata: meta,
+      createdAt: chunk.created_at,
+      document: {
+        source: chunk.source,
+        type: chunk.type,
+        title: chunk.title,
+      },
+      siblings: siblings.map(s => ({
+        id: s.id,
+        idx: s.idx,
+        preview: String(s.text || '').slice(0, 100),
+      })),
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
 // Import Google Takeout data
-app.post("/api/self-agent/import/google", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/import/google", async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string(), dir: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
@@ -533,7 +631,7 @@ app.post("/api/self-agent/import/google", async (req: Request, res: Response) =>
 });
 
 // Simple keyword search from DB
-app.get("/api/self-agent/search", async (req: Request, res: Response) => {
+apiRouter.get("/self-agent/search", async (req: Request, res: Response) => {
   const userId = String(req.query.userId || "");
   const q = normalizeText(String(req.query.q || ""));
   if (!userId || !q) return res.status(400).json({ error: "missing userId or q" });
@@ -546,7 +644,7 @@ app.get("/api/self-agent/search", async (req: Request, res: Response) => {
 });
 
 // Semantic retrieve
-app.get("/api/self-agent/retrieve", async (req: Request, res: Response) => {
+apiRouter.get("/self-agent/retrieve", async (req: Request, res: Response) => {
   const userId = String(req.query.userId || "");
   const q = normalizeText(String(req.query.q || ""));
   const topK = parseInt(String(req.query.topK || "6"), 10) || 6;
@@ -560,7 +658,7 @@ app.get("/api/self-agent/retrieve", async (req: Request, res: Response) => {
 });
 
 // === Chat Generation API (streaming support) ===
-app.post("/api/self-agent/generate/chat/stream", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/generate/chat/stream", async (req: Request, res: Response) => {
   const Body = z.object({
     userId: z.string(),
     history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
@@ -589,7 +687,7 @@ app.post("/api/self-agent/generate/chat/stream", async (req: Request, res: Respo
 
   try {
     // 1. Build persona profile
-  const persona = buildPersonaProfile(userId, { maxChunks: 100 });
+    const persona = buildPersonaProfile(userId, { maxChunks: 100 });
     
     // 2. RAG: retrieve relevant context
     const lastUserMessage = [...history].reverse().find((m) => m.role === "user")?.content || "";
@@ -598,10 +696,18 @@ app.post("/api/self-agent/generate/chat/stream", async (req: Request, res: Respo
     const hits = lastUserMessage
       ? retrieveRelevantHybrid(userId, lastUserMessage, { topK: 6, sources })
       : [];
+    
+    // Log RAG retrieval info for debugging
+    console.log(`[RAG] Query: "${lastUserMessage.slice(0, 50)}..." | Sources filter: ${sources?.join(',') || 'none'} | Hits: ${hits.length}`);
+    if (hits.length > 0) {
+      hits.forEach((h, i) => console.log(`  [${i+1}] score=${h.score.toFixed(3)} text="${h.text.slice(0, 60)}..."`));
+    }
+    
     const context = buildContext(hits.map(h => ({ text: h.text, score: h.score })));
     
-    // 3. Build persona-aware prompt
-    const personaPrompt = buildPersonaPrompt(persona, context);
+    // 3. Get available data sources and build persona prompt
+    const availableSources = getUserAvailableSources(userId);
+    const personaPrompt = buildPersonaPrompt(persona, context, availableSources);
     
     const finalHint = hint
       ? `${personaPrompt}\n\n${hint}`
@@ -642,7 +748,7 @@ app.post("/api/self-agent/generate/chat/stream", async (req: Request, res: Respo
   }
 });
 
-app.post("/api/self-agent/generate/chat", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/generate/chat", async (req: Request, res: Response) => {
   const Body = z.object({
     userId: z.string(),
     messages: z.array(z.object({ role: z.string(), content: z.string() })).optional(),
@@ -668,10 +774,12 @@ app.post("/api/self-agent/generate/chat", async (req: Request, res: Response) =>
   
   // 2. RAG: augment with top-k snippets
   const hits = retrieveRelevantHybrid(effectiveUserId, last, { topK: 6, sources: sources.length ? sources : undefined });
+  console.log(`[RAG non-stream] Query: "${last.slice(0, 50)}..." | Sources filter: ${sources.join(',') || 'none'} | Hits: ${hits.length}`);
   const ctx = buildContext(hits.map(h => ({ text: h.text, score: h.score })));
   
-  // 3. Build persona-aware prompt
-  const personaPrompt = buildPersonaPrompt(persona, ctx);
+  // 3. Build persona-aware prompt with available sources
+  const availableSources = getUserAvailableSources(effectiveUserId);
+  const personaPrompt = buildPersonaPrompt(persona, ctx, availableSources);
   
   const finalHint = parsed.data.hint
     ? `${personaPrompt}\n\n${parsed.data.hint}`
@@ -704,7 +812,7 @@ app.post("/api/self-agent/generate/chat", async (req: Request, res: Response) =>
 });
 
 // Streaming chat (SSE). We currently generate full text, then stream in chunks.
-app.post("/api/self-agent/chat/stream", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/chat/stream", async (req: Request, res: Response) => {
   try {
     const Body = z.object({
       userId: z.string(),
@@ -772,7 +880,7 @@ app.post("/api/self-agent/chat/stream", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/self-agent/generate/post", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/generate/post", async (req: Request, res: Response) => {
   const Body = z.object({
     userId: z.string(),
     context: z.string().optional(),
@@ -790,7 +898,7 @@ app.post("/api/self-agent/generate/post", async (req: Request, res: Response) =>
 
 app.get("/health", (_req: Request, res: Response) => res.send("ok"));
 
-app.get("/api/self-agent/provider-info", (_req: Request, res: Response) => {
+apiRouter.get("/self-agent/provider-info", (_req: Request, res: Response) => {
   const isGemini = provider instanceof GeminiProvider;
   res.json({
     provider: provider.name,
@@ -799,7 +907,7 @@ app.get("/api/self-agent/provider-info", (_req: Request, res: Response) => {
   });
 });
 
-app.post("/api/self-agent/provider-info/test", async (req: Request, res: Response) => {
+apiRouter.post("/self-agent/provider-info/test", async (req: Request, res: Response) => {
   if (!(provider instanceof GeminiProvider)) {
     return res.status(400).json({ ok: false, provider: provider.name, message: "Gemini provider not configured" });
   }
@@ -824,7 +932,7 @@ app.post("/api/self-agent/provider-info/test", async (req: Request, res: Respons
 });
 
 // Admin util: migrate data from one userId to another (useful when switching to email-based id)
-app.post("/api/self-agent/admin/migrate-user", (req: Request, res: Response) => {
+apiRouter.post("/self-agent/admin/migrate-user", (req: Request, res: Response) => {
   const Body = z.object({ from: z.string(), to: z.string() });
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
@@ -837,7 +945,7 @@ app.post("/api/self-agent/admin/migrate-user", (req: Request, res: Response) => 
 });
 
 // Admin: list user stats (documents/chunks/vectors) for all users
-app.get("/api/self-agent/admin/user-stats", (_req: Request, res: Response) => {
+apiRouter.get("/self-agent/admin/user-stats", (_req: Request, res: Response) => {
   try {
     const db = getDB();
     const users = db.prepare("SELECT id FROM users").all() as Array<{ id: string }>;
@@ -855,11 +963,154 @@ app.get("/api/self-agent/admin/user-stats", (_req: Request, res: Response) => {
 
 // === Data Deduplication APIs ===
 
+// Admin: repair instagram chunk text by decoding entities and fixing mojibake for an existing user
+apiRouter.post("/self-agent/admin/repair-instagram-text", (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ userId: z.string(), limit: z.number().optional() });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const { userId } = parsed.data;
+    const limit = Math.min(parsed.data.limit ?? 1000, 5000);
+    const db = getDB();
+    // select chunks from instagram documents
+    const rows = db.prepare(
+      `SELECT c.id, c.text, c.created_at, d.id AS doc_id, d.content AS doc_content
+       FROM chunks c
+       LEFT JOIN documents d ON d.id = c.doc_id
+       WHERE c.user_id = ? AND COALESCE(d.source,'unknown') = 'instagram'
+       ORDER BY c.created_at DESC
+       LIMIT ?`
+    ).all(userId, limit) as Array<any>;
+
+    let updated = 0;
+    for (const r of rows) {
+      const before = String(r.text || "");
+      // re-normalize to fix entities/mojibake
+      const after = normalizeText(before);
+      if (after && after !== before) {
+        db.prepare("UPDATE chunks SET text = ? WHERE id = ?").run(after, r.id);
+        updated++;
+      }
+    }
+    res.json({ ok: true, scanned: rows.length, updated });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
+
+// Admin: generic repair to re-normalize chunk text for a given source (e.g., google) to decode entities
+apiRouter.post("/self-agent/admin/repair-chunk-text", (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ userId: z.string(), source: z.string().optional(), limit: z.number().optional() });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const { userId, source } = parsed.data;
+    const limit = Math.min(parsed.data.limit ?? 2000, 10000);
+    const db = getDB();
+    const stmt = db.prepare(
+      `SELECT c.id, c.text, c.created_at, d.source AS source
+       FROM chunks c
+       LEFT JOIN documents d ON d.id = c.doc_id
+       WHERE c.user_id = ? ${source ? "AND COALESCE(d.source,'unknown') = ?" : ""}
+       ORDER BY c.created_at DESC
+       LIMIT ?`
+    );
+    const params: any[] = [userId];
+    if (source) params.push(source);
+    params.push(limit);
+    const rows = stmt.all(...params) as Array<any>;
+
+    let updated = 0;
+    for (const r of rows) {
+      const before = String(r.text || "");
+      const after = normalizeText(before);
+      if (after && after !== before) {
+        db.prepare("UPDATE chunks SET text = ? WHERE id = ?").run(after, r.id);
+        updated++;
+      }
+    }
+    res.json({ ok: true, source: source || "all", scanned: rows.length, updated });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
+
+// Admin: rehydrate instagram documents from original files and rebuild chunks/vectors
+apiRouter.post("/self-agent/admin/rehydrate-instagram", async (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ userId: z.string(), limit: z.number().optional(), dryRun: z.boolean().optional() });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const { userId } = parsed.data;
+    const limit = Math.min(parsed.data.limit ?? 50, 200);
+    const dryRun = parsed.data.dryRun ?? false;
+    const db = getDB();
+    const docs = db.prepare(
+      `SELECT id, title, type, content, metadata, created_at
+       FROM documents
+       WHERE user_id = ? AND COALESCE(source,'unknown') = 'instagram'
+       ORDER BY created_at DESC
+       LIMIT ?`
+    ).all(userId, limit) as Array<{ id: string; title: string; type: string; content: string; metadata: string; created_at: number }>;
+
+    let processed = 0, updated = 0, skippedNoPath = 0, skippedReadFail = 0;
+    for (const d of docs) {
+      processed++;
+      let meta: any = null;
+      try { meta = d.metadata ? JSON.parse(d.metadata) : null; } catch {}
+      const filePath = meta?.path as string | undefined;
+      if (!filePath || !filePath.toLowerCase().endsWith('.json')) { skippedNoPath++; continue; }
+      let raw = "";
+      try { raw = fs.readFileSync(filePath, 'utf8'); } catch { skippedReadFail++; continue; }
+
+      let newContent = "";
+      try {
+        const obj = JSON.parse(raw);
+        newContent = normalizeText(extractInstagramJson(obj));
+      } catch {
+        // not JSON; keep old content
+        continue;
+      }
+
+      if (!newContent || newContent === (d.content || "")) continue;
+
+      if (dryRun) { updated++; continue; }
+
+      const tx = db.transaction(() => {
+        // fetch chunk ids for this doc
+        const chunkRows = db.prepare("SELECT id FROM chunks WHERE doc_id = ?").all(d.id) as Array<{ id: string }>;
+        // delete vectors for these chunks
+        for (const cr of chunkRows) {
+          db.prepare("DELETE FROM vectors WHERE chunk_id = ?").run(cr.id);
+        }
+        // delete old chunks
+        db.prepare("DELETE FROM chunks WHERE doc_id = ?").run(d.id);
+        // update document content
+        db.prepare("UPDATE documents SET content = ? WHERE id = ?").run(newContent, d.id);
+        // rebuild chunks and vectors
+        const parts = chunkText(newContent, { maxChars: 1200, overlap: 120 });
+        parts.forEach((text, idx) => {
+          const id = `chk_${Math.random().toString(36).slice(2)}${Date.now()}`;
+          insertChunk({ id, doc_id: d.id, user_id: userId, idx, text, metadata: { platform: 'instagram', repaired: true } });
+          const vec = embedText(text);
+          insertVector(id, userId, vec);
+        });
+      });
+      tx();
+      updated++;
+    }
+
+    res.json({ ok: true, scanned: docs.length, processed, updated, skippedNoPath, skippedReadFail, dryRun });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
+
 /**
  * GET /api/self-agent/deduplication/stats
  * 获取重复数据统计（不执行删除）
  */
-app.get("/api/self-agent/deduplication/stats", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/deduplication/stats", (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -882,7 +1133,7 @@ app.get("/api/self-agent/deduplication/stats", (req: Request, res: Response) => 
  * POST /api/self-agent/deduplication/execute
  * 执行去重操作
  */
-app.post("/api/self-agent/deduplication/execute", (req: Request, res: Response) => {
+apiRouter.post("/self-agent/deduplication/execute", (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -921,7 +1172,7 @@ app.post("/api/self-agent/deduplication/execute", (req: Request, res: Response) 
  * GET /api/self-agent/deduplication/preview
  * 预览重复的文档和 chunks
  */
-app.get("/api/self-agent/deduplication/preview", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/deduplication/preview", (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -956,7 +1207,7 @@ app.get("/api/self-agent/deduplication/preview", (req: Request, res: Response) =
  * GET /api/google-sync/auth-url
  * 生成 Google OAuth 授权 URL
  */
-app.get("/api/google-sync/auth-url", (req: Request, res: Response) => {
+apiRouter.get("/google-sync/auth-url", (req: Request, res: Response) => {
   try {
     const userId = String(req.query.userId || "");
     
@@ -998,37 +1249,41 @@ app.get("/auth/google/callback", async (req: Request, res: Response) => {
     if (!userInfoResponse.ok) {
       throw new Error("Failed to get user info");
     }
-    
-    const userInfo = await userInfoResponse.json() as any;
+
+    const userInfo = await userInfoResponse.json() as { name: string; picture: string; email: string };
     
     // 保存 tokens 和用户信息
-    saveGoogleTokens(userId, tokens, userInfo);
+    saveGoogleTokens(userId, tokens);
     
-    // 触发首次同步（异步）
-    syncAllGoogleServices(userId).catch(err => {
-      console.error("[google-sync] Initial sync failed:", err);
+    // 确保用户存在
+    ensureUser(userId);
+    
+    // 更新用户资料
+    updateAuthProfile(userId, {
+      name: userInfo.name,
+      avatar: userInfo.picture,
     });
-    
-    // 重定向回前端
-    res.redirect(`http://localhost:8080/settings?google=connected`);
+
+    // 重定向回前端应用
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+    res.redirect(`${frontendUrl}/settings?google_sync=success`);
+
   } catch (e: any) {
-    console.error("[auth-callback] Error:", e);
-    res.redirect(`http://localhost:8080/settings?google=error&message=${encodeURIComponent(e.message)}`);
+    console.error("Google OAuth callback error:", e);
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
+    res.redirect(`${frontendUrl}/settings?google_sync=error&message=${encodeURIComponent(e.message)}`);
   }
 });
 
 /**
  * GET /api/google-sync/status
- * 获取 Google 账号连接状态
+ * 获取 Google 连接状态
  */
-app.get("/api/google-sync/status", (req: Request, res: Response) => {
+apiRouter.get("/google-sync/status", (req: Request, res: Response) => {
   try {
     const userId = String(req.query.userId || "");
+    if (!userId) return res.status(400).json({ error: "missing userId" });
     
-    if (!userId) {
-      return res.status(400).json({ error: "missing userId" });
-    }
-
     const status = getGoogleConnectionStatus(userId);
     res.json({ ok: true, ...status });
   } catch (e: any) {
@@ -1037,161 +1292,77 @@ app.get("/api/google-sync/status", (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/google-sync/trigger
- * 手动触发同步
+ * POST /api/google-sync/revoke
+ * 撤销 Google 连接
  */
-app.post("/api/google-sync/trigger", async (req: Request, res: Response) => {
+apiRouter.post("/google-sync/revoke", async (req: Request, res: Response) => {
   try {
     const Body = z.object({ userId: z.string() });
     const parsed = Body.safeParse(req.body);
-    
-    if (!parsed.success) {
-      return res.status(400).json(parsed.error.flatten());
-    }
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
 
-    const userId = parsed.data.userId;
-    
-    // 检查连接状态
-    const status = getGoogleConnectionStatus(userId);
-    if (!status.connected) {
-      return res.status(400).json({ error: "Google account not connected" });
-    }
-
-    // 异步执行同步
-    syncAllGoogleServices(userId)
-      .then(results => {
-        console.log(`[google-sync] Manual sync completed for ${userId}:`, results);
-      })
-      .catch(err => {
-        console.error(`[google-sync] Manual sync failed for ${userId}:`, err);
-      });
-
-    res.json({ ok: true, message: "Sync started" });
+    await revokeGoogleConnection(parsed.data.userId);
+    res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 });
 
 /**
- * POST /api/google-sync/revoke
- * 撤销 Google 账号授权
+ * POST /api/google-sync/sync-all
+ * 同步所有 Google 服务
  */
-app.post("/api/google-sync/revoke", async (req: Request, res: Response) => {
+apiRouter.post("/google-sync/sync-all", async (req: Request, res: Response) => {
   try {
     const Body = z.object({ userId: z.string() });
     const parsed = Body.safeParse(req.body);
-    
-    if (!parsed.success) {
-      return res.status(400).json(parsed.error.flatten());
-    }
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
 
-    const userId = parsed.data.userId;
-    await revokeGoogleConnection(userId);
-    
-    res.json({ ok: true, message: "Google connection revoked" });
+    // 异步执行，立即返回
+    syncAllGoogleServices(parsed.data.userId).catch(console.error);
+
+    res.json({ ok: true, message: "Sync process started in background." });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 });
 
-// Test: seed sample memory data for testing RAG
-app.post("/api/self-agent/seed-test-data", (req: Request, res: Response) => {
-  const Body = z.object({ userId: z.string() });
-  const parsed = Body.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
-  const userId = parsed.data.userId;
-  
+
+app.use("/api", apiRouter);
+
+const PORT = process.env.PORT || 8787;
+
+const server = app.listen(PORT, () => {
+  console.log(`✓ Self AI Agent running on http://127.0.0.1:${PORT}`);
+  // Ensure user 'default' exists
   try {
-    ensureUser(userId);
-    
-    // Sample memories with different types and content
-    const samples = [
-      {
-        id: `doc-test-1-${Date.now()}`,
-        title: "我的第一次旅行",
-        type: "text",
-        content: "去年夏天，我去了北京旅游。参观了故宫和长城，拍了很多照片。天气很热但是非常开心。",
-        chunks: ["去年夏天，我去了北京旅游。参观了故宫和长城，拍了很多照片。", "天气很热但是非常开心。北京的美食也很棒，特别是烤鸭。"]
-      },
-      {
-        id: `doc-test-2-${Date.now()}`,
-        title: "工作笔记",
-        type: "note",
-        content: "今天完成了项目的前端开发，使用了 React 和 TypeScript。明天需要优化性能和添加测试。",
-        chunks: ["今天完成了项目的前端开发，使用了 React 和 TypeScript。", "明天需要优化性能和添加测试。团队协作很顺利。"]
-      },
-      {
-        id: `doc-test-3-${Date.now()}`,
-        title: "家庭聚会照片",
-        type: "photo",
-        content: "2024年春节家庭聚会的照片，全家人一起吃年夜饭。",
-        chunks: ["2024年春节家庭聚会的照片，全家人一起吃年夜饭。", "妈妈做了很多好吃的菜，大家都很开心。"]
-      },
-      {
-        id: `doc-test-4-${Date.now()}`,
-        title: "学习笔记 - AI 技术",
-        type: "note",
-        content: "学习了关于 RAG (Retrieval Augmented Generation) 的知识，它结合了检索和生成。",
-        chunks: ["学习了关于 RAG (Retrieval Augmented Generation) 的知识。", "RAG 结合了检索和生成，可以提供更准确的答案。向量数据库很重要。"]
-      },
-      {
-        id: `doc-test-5-${Date.now()}`,
-        title: "健身计划",
-        type: "text",
-        content: "开始每周三次健身，主要是力量训练和有氧运动。目标是增肌和提高体能。",
-        chunks: ["开始每周三次健身，主要是力量训练和有氧运动。", "目标是增肌和提高体能。已经坚持了一个月，感觉身体状态变好了。"]
-      }
-    ];
-    
-    let totalChunks = 0;
-    let totalVectors = 0;
-    
-    samples.forEach((sample, sampleIdx) => {
-      const docId = sample.id;
-      insertDocument({
-        id: docId,
-        user_id: userId,
-        source: "test-seed",
-        type: sample.type,
-        title: sample.title,
-        content: sample.content,
-        metadata: { seededAt: Date.now(), sampleIndex: sampleIdx },
-        created_at: Date.now() - (samples.length - sampleIdx) * 86400000 // stagger by days
-      });
-      
-      sample.chunks.forEach((chunkText, chunkIdx) => {
-        const chunkId = `${docId}-chunk-${chunkIdx}`;
-        insertChunk({
-          id: chunkId,
-          doc_id: docId,
-          user_id: userId,
-          idx: chunkIdx,
-          text: chunkText,
-          metadata: { chunkIndex: chunkIdx },
-          created_at: Date.now() - (samples.length - sampleIdx) * 86400000 + chunkIdx * 1000
-        });
-        totalChunks++;
-        
-        const vec = embedText(chunkText);
-        insertVector(chunkId, userId, vec);
-        totalVectors++;
-      });
-    });
-    
-    res.json({ 
-      ok: true, 
-      message: "Test data seeded successfully",
-      stats: {
-        documents: samples.length,
-        chunks: totalChunks,
-        vectors: totalVectors
-      }
-    });
-  } catch (e: any) {
-    res.status(500).json({ ok: false, error: String(e?.message || e) });
+    ensureUser("default");
+    console.log("✓ Default user ensured.");
+  } catch (e) {
+    console.error("✗ Failed to ensure default user:", e);
   }
 });
 
-app.listen(config.port, () => {
-  console.log(`[Self_AI_Agent] listening on http://localhost:${config.port}`);
-});
+// Graceful shutdown
+const gracefulShutdown = (signal: string) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  server.close(() => {
+    console.log("✓ HTTP server closed.");
+    // Close DB connection if needed
+    try {
+      const db = getDB();
+      if (db.open) {
+        db.close();
+        console.log("✓ Database connection closed.");
+      }
+    } catch (e) {
+      console.error("✗ Error closing database:", e);
+    }
+    process.exit(0);
+  });
+};
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
+export default app;

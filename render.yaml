@@ -1,0 +1,44 @@
+# Render 部署配置
+# 官方文档: https://render.com/docs/infrastructure-as-code
+
+services:
+  # 后端 Web Service
+  - type: web
+    name: soma-backend
+    env: node
+    region: oregon
+    plan: free
+    rootDir: Self_AI_Agent
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8787
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+  # 前端 Static Site
+  - type: web
+    name: soma-frontend
+    env: static
+    region: oregon
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://soma-backend.onrender.com/api
+      - key: VITE_SELF_AGENT_API_BASE_URL
+        value: https://soma-backend.onrender.com

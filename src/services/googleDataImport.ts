@@ -77,9 +77,9 @@ class GoogleDataImportService {
   }
 
   constructor() {
-    const baseUrl = (import.meta.env.VITE_SELF_AGENT_API_BASE_URL as string | undefined)?.replace(/\/$/, "");
-    this.apiEndpoint = baseUrl ? `${baseUrl}/api/google-import` : '/api/google-import';
-    this.friendlyTarget = baseUrl || 'http://localhost:8787';
+  const baseUrl = undefined as unknown as string | undefined;
+  this.apiEndpoint = '/api/google-import';
+  this.friendlyTarget = 'http://localhost:8787';
   }
 
   private async safeFetch(input: RequestInfo | URL, init?: RequestInit) {

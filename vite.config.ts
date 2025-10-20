@@ -11,34 +11,15 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     strictPort: true,
     proxy: {
-      "/api/self-agent": {
-        target:
-          (process.env.VITE_SELF_AGENT_API_BASE_URL?.replace(/\/$/, "")) ||
-          `http://localhost:${process.env.SELF_AGENT_PORT || 8787}`,
+      "/api": {
+        target: `http://127.0.0.1:${process.env.SELF_AGENT_PORT || 8787}`,
         changeOrigin: true,
-        rewrite: (path) => path,
+        // 不改写路径，后端已挂载到 /api
       },
-      "/api/google-import": {
-        target:
-          (process.env.VITE_SELF_AGENT_API_BASE_URL?.replace(/\/$/, "")) ||
-          `http://localhost:${process.env.SELF_AGENT_PORT || 8787}`,
+      // Google OAuth 回调需要直达后端
+      "/auth/google/callback": {
+        target: `http://127.0.0.1:${process.env.SELF_AGENT_PORT || 8787}`,
         changeOrigin: true,
-        rewrite: (path) => path,
-      },
-      // Auth & user profile APIs served by Self_AI_Agent
-      "/auth": {
-        target:
-          (process.env.VITE_SELF_AGENT_API_BASE_URL?.replace(/\/$/, "")) ||
-          `http://localhost:${process.env.SELF_AGENT_PORT || 8787}`,
-        changeOrigin: true,
-        rewrite: (path) => path,
-      },
-      "/user": {
-        target:
-          (process.env.VITE_SELF_AGENT_API_BASE_URL?.replace(/\/$/, "")) ||
-          `http://localhost:${process.env.SELF_AGENT_PORT || 8787}`,
-        changeOrigin: true,
-        rewrite: (path) => path,
       },
     },
   },

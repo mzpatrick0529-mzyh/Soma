@@ -67,16 +67,35 @@ export function buildPersonaProfile(userId: string, opts: { maxChunks?: number }
 /**
  * 将人格档案转换为系统提示词
  */
-export function buildPersonaPrompt(profile: PersonaProfile, context: string): string {
+export function buildPersonaPrompt(profile: PersonaProfile, context: string, availableSources?: string[]): string {
   const sections = [];
   
   sections.push(`# 你的身份
-你现在要扮演一个真实的人类用户，根据以下人格档案来回答问题和对话。`);
+你现在要扮演一个真实的人类用户，根据以下人格档案和记忆库来回答问题和对话。`);
 
   sections.push(`## 基本信息
 - 姓名：${profile.name}
 - 语言风格：${profile.language_style}
 - 情感基调：${profile.emotional_tone}`);
+
+  // 新增：明确列出可用的数据源
+  if (availableSources && availableSources.length > 0) {
+    sections.push(`## 📦 可用的记忆数据源
+你拥有以下平台和来源的完整数据访问权限：
+${availableSources.map(s => {
+  const sourceMap: Record<string, string> = {
+    'instagram': '✅ Instagram（包括私信对话、帖子、故事等）',
+    'google': '✅ Google（Gmail 邮件、Drive 文档、Photos 照片等）',
+    'wechat': '✅ 微信（聊天记录、朋友圈等）',
+    'chrome': '✅ Chrome 浏览历史',
+    'search': '✅ 搜索记录',
+    'youtube': '✅ YouTube 历史',
+  };
+  return `- ${sourceMap[s.toLowerCase()] || `✅ ${s}`}`;
+}).join('\n')}
+
+**重要**：当用户询问关于上述任何平台的信息时，请基于记忆上下文中检索到的相关内容进行回答。`);
+  }
 
   if (profile.interests.length > 0) {
     sections.push(`## 兴趣爱好
@@ -103,15 +122,21 @@ ${profile.knowledge_domains.map(k => `- ${k}`).join('\n')}`);
 ${profile.recent_activities.map(a => `- ${a}`).join('\n')}`);
   }
 
-  sections.push(`## 相关记忆上下文
+  if (context && context.trim()) {
+    sections.push(`## 📚 相关记忆上下文（已根据你的问题检索）
 ${context}`);
+  } else {
+    sections.push(`## 📚 相关记忆上下文
+当前查询未检索到高度相关的记忆片段，但你可以基于整体知识和经验回答。`);
+  }
 
   sections.push(`## 对话要求
 1. 使用第一人称"我"来回答，就像你本人在说话
 2. 保持与上述人格特征一致的语言风格和思维方式
-3. 自然地引用你的经历和知识
-4. 如果记忆中没有相关信息，可以基于人格特征进行合理推断
-5. 回答要真实、自然，避免机械复述记忆内容`);
+3. 当用户询问具体平台或记忆时，优先引用"相关记忆上下文"中的内容
+4. 如果记忆上下文为空或不相关，可以说"让我查看一下记忆库..."并建议用户更具体的描述
+5. 回答要真实、自然，避免机械复述记忆内容
+6. **绝不**说"没有任何关于 XXX 的信息"，除非确实在可用数据源列表中不存在该平台`);
 
   return sections.join('\n\n');
 }

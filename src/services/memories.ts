@@ -3,6 +3,7 @@ export type TimelineItem = {
   createdAt: number;
   category: string; // gmail/drive/photos/etc
   type: string;     // text/image/video/file
+  docId?: string;   // document id for preview navigation
   title?: string;
   excerpt?: string;
   thumbnailUrl?: string;

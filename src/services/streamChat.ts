@@ -12,6 +12,7 @@ export interface StreamChatOptions {
   userId: string;
   history: ChatMessage[];
   hint?: string;
+  sources?: string[]; // 可选：限制检索来源，如 ["instagram","google"]
   onChunk?: (text: string) => void;
   onComplete?: (fullText: string) => void;
   onError?: (error: Error) => void;
@@ -21,11 +22,13 @@ export interface StreamChatOptions {
  * 流式对话 API 调用
  */
 export async function streamChat(options: StreamChatOptions): Promise<void> {
-  const { userId, history, hint, onChunk, onComplete, onError } = options;
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
+  const { userId, history, hint, sources, onChunk, onComplete, onError } = options;
+  // 统一走相对路径，由 Vite 代理到后端
+  const API_BASE = "/api";
 
   try {
-    const response = await fetch(`${API_BASE}/api/self-agent/generate/chat/stream`, {
+  const qs = sources && sources.length ? `?sources=${encodeURIComponent(sources.join(","))}` : "";
+  const response = await fetch(`${API_BASE}/self-agent/generate/chat/stream${qs}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, history, hint }),
@@ -94,8 +97,8 @@ export interface ProviderInfo {
 }
 
 export async function getProviderInfo(): Promise<ProviderInfo> {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
-  const res = await fetch(`${API_BASE}/api/self-agent/provider-info`);
+  const API_BASE = "/api";
+  const res = await fetch(`${API_BASE}/self-agent/provider-info`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
