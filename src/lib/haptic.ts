@@ -1,13 +1,13 @@
 /**
- * 触感反馈工具类
- * 支持不同强度和类型的触觉反馈
+ * Haptic feedback utility class
+ * Supports different intensities and types of tactile feedback
  */
 
 export type HapticType = 
-  | "light"      // 轻度反馈 - 按钮点击
-  | "medium"     // 中度反馈 - 通知提醒  
-  | "heavy"      // 强度反馈 - 错误警告
-  | "success"    // 成功反馈 - 操作完成
+  | "light"      // Light feedback - button click
+  | "medium"     // Medium feedback - notification alert  
+  | "heavy"      // Heavy feedback - error warning
+  | "success"    // Success feedback - operation completed
   | "warning"    // 警告反馈 - 注意事项
   | "error"      // 错误反馈 - 操作失败
   | "selection"  // 选择反馈 - 选项切换
@@ -49,7 +49,7 @@ class HapticManager {
   }
 
   /**
-   * 保存用户设置到本地存储
+   * Save用户设置到本地存储
    */
   public setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
@@ -210,7 +210,7 @@ class HapticManager {
 // 创建全局单例
 export const haptic = new HapticManager();
 
-// 导出类型和工具函数
+// 导出类型and工具函数
 export { HapticManager };
 
 /**

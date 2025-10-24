@@ -110,7 +110,7 @@ export const PullToRefresh = ({
         transition: isPulling ? "none" : "transform 0.3s ease-out",
       }}
     >
-      {/* 刷新指示器 */}
+      {/* Refresh指示器 */}
       <div
         className={cn(
           "absolute top-0 left-1/2 transform -translate-x-1/2 z-50",
@@ -148,9 +148,9 @@ export const PullToRefresh = ({
             opacity: indicatorOpacity,
           }}
         >
-          {refreshState === "pulling" && "下拉刷新"}
-          {refreshState === "ready" && "松开刷新"}
-          {refreshState === "refreshing" && "正在刷新..."}
+          {refreshState === "pulling" && "下拉Refresh"}
+          {refreshState === "ready" && "松开Refresh"}
+          {refreshState === "refreshing" && "正在Refresh..."}
         </div>
       )}
 

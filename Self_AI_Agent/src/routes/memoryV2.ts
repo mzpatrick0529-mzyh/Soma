@@ -117,7 +117,7 @@ router.get('/:userId/l0/search', async (req, res) => {
 });
 
 // ============================================
-// L1: 主题聚类 API
+// L1: Theme聚类 API
 // ============================================
 
 /**
@@ -145,7 +145,7 @@ router.post('/:userId/l1/cluster', async (req, res) => {
 
 /**
  * GET /api/memory/v2/:userId/l1/clusters
- * 获取用户的主题聚类
+ * 获取用户的Theme聚类
  */
 router.get('/:userId/l1/clusters', async (req, res) => {
   try {
@@ -381,7 +381,7 @@ router.post('/:userId/build-hierarchy', async (req, res) => {
 });
 
 // ============================================
-// 统计和监控 API
+// 统计and监控 API
 // ============================================
 
 /**

@@ -1,7 +1,7 @@
 import fg from "fast-glob";
 import fs from "fs";
 import path from "path";
-import { ensureUser, insertDocument, insertChunk, insertVector } from "../db";
+import { ensureUser, insertDocument, insertChunk, insertVector, getDB } from "../db";
 import { stripHtml, normalizeText } from "../utils/text";
 import { chunkText } from "../pipeline/chunk";
 import { embedText } from "../pipeline/embeddings";
@@ -31,11 +31,16 @@ export async function importGoogleTakeout(userId: string, takeoutDir: string): P
       const type = ext.replace(".", "");
 
       const raw = fs.readFileSync(file, "utf8");
+      let parsedJson: any = null;
+      let formattedText = "";
+      
       if (ext === ".json") {
         // Best-effort: try to stringify meaningful fields
         try {
-          const obj = JSON.parse(raw);
-          content = extractFromJson(obj);
+          parsedJson = JSON.parse(raw);
+          formattedText = extractFromJson(parsedJson);
+          // ✅ Save原始 JSON 结构
+          content = raw; // Save原始 JSON 字符串
         } catch {
           content = raw;
         }
@@ -48,17 +53,52 @@ export async function importGoogleTakeout(userId: string, takeoutDir: string): P
         content = raw;
       }
 
-      content = normalizeText(content);
+      // 只对非 JSON 文件进行 normalize
+      if (ext !== ".json") {
+        content = normalizeText(content);
+      }
       if (!content) continue;
 
       const docId = uid("doc");
-      insertDocument({ id: docId, user_id: userId, source, type, title, content, metadata: { path: file } });
+      // 导入前去重：SQLite 路径直接按内容全等（对 JSON 则按原始 JSON 字符串）
+      try {
+        const db = getDB();
+        const dup = db.prepare(`SELECT id FROM documents WHERE user_id = ? AND content = ? LIMIT 1`).get(userId, content) as any;
+        if (dup?.id) {
+          // skip duplicate
+          continue;
+        }
+      } catch {}
+      insertDocument({ 
+        id: docId, 
+        user_id: userId, 
+        source, 
+        type, 
+        title, 
+        content, // ✅ JSON Save原始结构，其他文件Save文本
+        metadata: { 
+          path: file,
+          isJson: ext === ".json",
+          formattedText: formattedText || undefined,
+          dataSource: "Google Takeout"
+        } 
+      });
       stats.docs += 1;
 
-      const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
+      // ✅ 对 JSON 使用格式化文本进行 chunking
+      const textForChunking = (ext === ".json" && formattedText) ? formattedText : content;
+      const chunks = chunkText(textForChunking, { maxChars: 1200, overlap: 120 });
       chunks.forEach((text, idx) => {
         const chunkId = uid("chk");
-        insertChunk({ id: chunkId, doc_id: docId, user_id: userId, idx, text, metadata: { path: file } });
+        insertChunk({ 
+          id: chunkId, 
+          doc_id: docId, 
+          user_id: userId, 
+          idx, 
+          text, 
+          metadata: { path: file, source } 
+        });
+        // ✅ 生成并插入向量
         const vec = embedText(text);
         insertVector(chunkId, userId, vec);
         stats.chunks += 1;

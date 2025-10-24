@@ -25,6 +25,9 @@ import { buildPersonaProfile, buildPersonaPrompt } from "./pipeline/persona";
 import { normalizeText } from "./utils/text";
 import uploadRouter from "./routes/upload";
 import decryptRouter from "./routes/decrypt";
+import { createUserModelRoutes } from "./routes/userModel";
+import trainingRouter from "./routes/training";
+import chatInferenceRouter from "./routes/chatInference";
 import multer from "multer";
 import { summarizeMediaByPath } from "./utils/media";
 import { embedText } from "./pipeline/embeddings";
@@ -44,7 +47,9 @@ import {
 import { syncAllGoogleServices } from "./services/googleSync";
 import { extractInstagramJson } from "./importers/instagram";
 import { chunkText } from "./pipeline/chunk";
-// iCloud 服务按需动态加载，避免在未安装依赖时阻塞启动
+import { withUserClient, healthcheck } from "./db/pgClient";
+import { maintainPgVector } from "./db/pgMaintenance";
+// iCloud service loaded on-demand to avoid blocking startup when dependencies are not installed
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -55,9 +60,50 @@ app.use(express.urlencoded({ limit: "100mb", extended: true }));
 
 const apiRouter = express.Router();
 
+// Storage backend switch (guard against missing connection string)
+const pgConn = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
+const USE_PG = ((process.env.STORAGE_BACKEND || "").toLowerCase() === "pg") && Boolean(pgConn);
+if ((process.env.STORAGE_BACKEND || "").toLowerCase() === "pg" && !pgConn) {
+  console.warn("[BOOT] STORAGE_BACKEND=pg but missing SUPABASE_DB_URL/DATABASE_URL; falling back to SQLite runtime.");
+}
+
 // Mount all routes onto apiRouter
 apiRouter.use("/google-import", uploadRouter);
 apiRouter.use("/decrypt", decryptRouter);
+apiRouter.use("/user-model", createUserModelRoutes());
+apiRouter.use("/self-agent/training", trainingRouter);
+apiRouter.use("/self-agent/chat", chatInferenceRouter);
+
+// === PG Vector Index Maintenance (admin) ===
+apiRouter.post("/self-agent/admin/pg/maintenance", async (req: Request, res: Response) => {
+  try {
+    if (!USE_PG) return res.status(400).json({ error: "STORAGE_BACKEND != pg" });
+    const token = String(req.header('x-admin-token') || '');
+    const expected = String(process.env.ADMIN_TOKEN || '');
+    if (expected && token !== expected) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const lists = Number(req.query.lists || 100);
+    await maintainPgVector({ lists: Number.isFinite(lists) ? lists : 100 });
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
+// === Health endpoint (storage + PG connectivity) ===
+apiRouter.get("/self-agent/health", async (_req: Request, res: Response) => {
+  try {
+    const pgConfigured = Boolean(pgConn);
+    let pgConnected: boolean | null = null;
+    if (USE_PG && pgConfigured) {
+      try { pgConnected = await healthcheck(); } catch { pgConnected = false; }
+    }
+    res.json({ ok: true, storage: USE_PG ? "pg" : "sqlite", pg: { configured: pgConfigured, connected: pgConnected } });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
+  }
+});
 
 // === iCloud Connect & Sync ===
 apiRouter.post("/icloud/connect", async (req: Request, res: Response) => {
@@ -137,7 +183,7 @@ apiRouter.post("/media/import", mediaUpload.single("file"), async (req: Request,
   if (!parsed.success) return res.status(400).json({ error: "invalid body" });
   try {
     if (!req.file) return res.status(400).json({ error: "no file" });
-    // 对单个媒体文件进行摘要，便于 RAG
+    // Summarize single media file for RAG
     const summary = await summarizeMediaByPath(req.file.path);
     const title = summary.title || req.file.originalname;
     const content = summary.content;
@@ -152,7 +198,7 @@ apiRouter.post("/media/import", mediaUpload.single("file"), async (req: Request,
   }
 });
 
-// 批量媒体导入（多文件）
+// Batch media import (multiple files)
 apiRouter.post("/media/import-multiple", mediaUpload.array("files", 200), async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
@@ -178,7 +224,7 @@ apiRouter.post("/media/import-multiple", mediaUpload.array("files", 200), async 
   }
 });
 
-// 压缩包导入（zip/tgz）：解压后调用通用导入器，自动识别目录中的媒体文件
+// Archive import (zip/tgz): Extract and call generic importer, auto-detect media files in directory
 apiRouter.post("/media/import-archive", mediaUpload.single("file"), async (req: Request, res: Response) => {
   const Body = z.object({ userId: z.string() });
   const parsed = Body.safeParse(req.body);
@@ -190,8 +236,8 @@ apiRouter.post("/media/import-archive", mediaUpload.single("file"), async (req: 
     fs.mkdirSync(extractDir, { recursive: true });
     if (ext === ".zip") {
       const { default: uploadRoutes } = await import("./routes/upload");
-      // 由于模块循环，这里改为复用轻量解压逻辑：动态引入 extractors 不合适，直接用 yauzl 另行实现会复杂；此处建议前端解压后走 import-multiple
-      // 为满足需求，先存档文件入库，标记为archive
+      // Due to module circular dependency, reuse lightweight extraction logic here: dynamic import of extractors is inappropriate, implementing with yauzl directly would be complex; recommend frontend extract then use import-multiple
+      // To meet requirements, first store archive file in database, mark as archive
       const title = req.file.originalname;
       const content = `Archive uploaded: ${title}\nPath: ${req.file.path}`;
       const docId = `doc_${Math.random().toString(36).slice(2)}${Date.now()}`;
@@ -210,7 +256,7 @@ apiRouter.post("/media/import-archive", mediaUpload.single("file"), async (req: 
         createGunzip(),
         extract({ cwd: extractDir, strip: 1 })
       );
-      // 目录导入媒体
+      // Import media from directory
       const mod = await import("./services/icloud");
       const result = await mod.importMediaFolder(parsed.data.userId, extractDir);
       return res.json({ ok: true, imported: result.imported });
@@ -355,7 +401,7 @@ apiRouter.get("/self-agent/stats", (req: Request, res: Response) => {
 });
 
 // Memories timeline (grouped by day, newest first)
-apiRouter.get("/self-agent/memories/timeline", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/timeline", async (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -365,26 +411,50 @@ apiRouter.get("/self-agent/memories/timeline", (req: Request, res: Response) => 
     if (!userId) return res.status(400).json({ error: "missing userId" });
     const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
     const cursor = req.query.cursor ? parseInt(String(req.query.cursor), 10) : undefined;
+    let rows: Array<any> = [];
 
-    const db = getDB();
-    const baseSql = `
-      SELECT c.id, c.doc_id, c.user_id, c.idx, c.text, c.metadata, c.created_at,
-             d.source AS doc_source, d.type AS doc_type, d.title AS doc_title
-      FROM chunks c
-      LEFT JOIN documents d ON d.id = c.doc_id
-      WHERE c.user_id = ?
-      ${cursor ? "AND c.created_at < ?" : ""}
-      ORDER BY c.created_at DESC
-      LIMIT ?
-    `;
-
-    const rows = (cursor
-      ? db.prepare(baseSql).all(userId, cursor, limit)
-      : db.prepare(baseSql).all(userId, limit)) as Array<any>;
+    if (USE_PG) {
+      await withUserClient(userId, async (c) => {
+        const params: any[] = [userId];
+        let sql = `
+          SELECT c.id, c.doc_id, c.user_id, c.idx, c.text, c.metadata, c.created_at,
+                 d.source AS doc_source, d.type AS doc_type, d.title AS doc_title
+          FROM chunks c
+          LEFT JOIN documents d ON d.id = c.doc_id
+          WHERE c.user_id = $1
+        `;
+        if (cursor) {
+          sql += ` AND c.created_at < $2`;
+          params.push(new Date(cursor).toISOString());
+        }
+        sql += ` ORDER BY c.created_at DESC LIMIT ${limit}`;
+        const r = await c.query(sql, params);
+        rows = r.rows as any[];
+      });
+    } else {
+      const db = getDB();
+      const baseSql = `
+        SELECT c.id, c.doc_id, c.user_id, c.idx, c.text, c.metadata, c.created_at,
+               d.source AS doc_source, d.type AS doc_type, d.title AS doc_title
+        FROM chunks c
+        LEFT JOIN documents d ON d.id = c.doc_id
+        WHERE c.user_id = ?
+        ${cursor ? "AND c.created_at < ?" : ""}
+        ORDER BY c.created_at DESC
+        LIMIT ?
+      `;
+      rows = (cursor
+        ? db.prepare(baseSql).all(userId, cursor, limit)
+        : db.prepare(baseSql).all(userId, limit)) as Array<any>;
+    }
 
     const items = rows.map((r) => {
       let meta: any = undefined;
-      try { meta = r.metadata ? JSON.parse(r.metadata) : undefined; } catch {}
+      try {
+        if (r.metadata && typeof r.metadata === 'string') meta = JSON.parse(r.metadata);
+        else if (r.metadata) meta = r.metadata;
+      } catch {}
+      const createdAt = typeof r.created_at === 'number' ? r.created_at : new Date(r.created_at).getTime();
       return {
         id: r.id as string,
         docId: r.doc_id as string,
@@ -392,7 +462,7 @@ apiRouter.get("/self-agent/memories/timeline", (req: Request, res: Response) => 
         index: r.idx as number,
         text: r.text as string,
         metadata: meta,
-        createdAt: (r.created_at as number) || Date.now(),
+        createdAt: createdAt || Date.now(),
         source: (r.doc_source as string) || "google",
         type: (r.doc_type as string) || "text",
         title: (r.doc_title as string) || undefined,
@@ -407,7 +477,7 @@ apiRouter.get("/self-agent/memories/timeline", (req: Request, res: Response) => 
       const day = `${d.getDate().toString().padStart(2, "0")}`;
       const key = `${y}-${m}-${day}`;
       if (!groups[key]) {
-        const title = d.toLocaleDateString("zh-CN", { dateStyle: "long" });
+  const title = d.toLocaleDateString("en-US", { dateStyle: "long" });
         groups[key] = { title, date: key, items: [] };
       }
       groups[key].items.push({
@@ -432,7 +502,7 @@ apiRouter.get("/self-agent/memories/timeline", (req: Request, res: Response) => 
 });
 
 // Folder list grouped by source/type with small previews
-apiRouter.get("/self-agent/memories/folders", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/folders", async (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -440,33 +510,69 @@ apiRouter.get("/self-agent/memories/folders", (req: Request, res: Response) => {
     const qp = String(req.query.userId || "");
     const userId = (payload?.email as string | undefined) || qp;
     if (!userId) return res.status(400).json({ error: "missing userId" });
-    const db = getDB();
-    const rows = db.prepare(
-      `SELECT COALESCE(d.source,'unknown') AS source, d.type AS type, COUNT(*) AS docs
-       FROM documents d
-       WHERE d.user_id = ?
-       GROUP BY source, type
-       ORDER BY docs DESC`
-    ).all(userId) as Array<{ source: string; type: string; docs: number }>;
+    let folders: Array<any> = [];
+    if (USE_PG) {
+      await withUserClient(userId, async (c) => {
+        const r1 = await c.query(
+          `SELECT COALESCE(d.source,'unknown') AS source, COALESCE(d.type,'text') AS type, COUNT(*) AS docs
+           FROM documents d
+           WHERE d.user_id = $1
+           GROUP BY COALESCE(d.source,'unknown'), COALESCE(d.type,'text')
+           ORDER BY COUNT(*) DESC`,
+          [userId]
+        );
+        const rows = r1.rows as Array<{ source: string; type: string; docs: number }>;
+        const tmp: any[] = [];
+        for (const r of rows) {
+          const r2 = await c.query(
+            `SELECT c.id, c.text, c.created_at
+             FROM chunks c
+             LEFT JOIN documents d ON d.id = c.doc_id
+             WHERE c.user_id = $1 AND COALESCE(d.source,'unknown') = $2
+             ORDER BY c.created_at DESC
+             LIMIT 3`,
+            [userId, r.source]
+          );
+          const items = r2.rows as any[];
+          tmp.push({
+            id: `${r.source}`,
+            source: r.source,
+            type: r.type || "text",
+            count: Number(r.docs) || 0,
+            previews: items.map(it => ({ id: it.id, excerpt: String(it.text || '').slice(0, 80), createdAt: typeof it.created_at === 'number' ? it.created_at : new Date(it.created_at).getTime() }))
+          });
+        }
+        folders = tmp;
+      });
+    } else {
+      const db = getDB();
+      const rows = db.prepare(
+        `SELECT COALESCE(d.source,'unknown') AS source, d.type AS type, COUNT(*) AS docs
+         FROM documents d
+         WHERE d.user_id = ?
+         GROUP BY source, type
+         ORDER BY docs DESC`
+      ).all(userId) as Array<{ source: string; type: string; docs: number }>;
 
-    // take recent 3 items as previews per folder
-    const folders = rows.map((r) => {
-      const items = db.prepare(
-        `SELECT c.id, c.text, c.created_at
-         FROM chunks c
-         LEFT JOIN documents d ON d.id = c.doc_id
-         WHERE c.user_id = ? AND COALESCE(d.source,'unknown') = ?
-         ORDER BY c.created_at DESC
-         LIMIT 3`
-      ).all(userId, r.source) as Array<any>;
-      return {
-        id: `${r.source}`,
-        source: r.source,
-        type: r.type || "text",
-        count: r.docs,
-        previews: items.map(it => ({ id: it.id, excerpt: String(it.text || '').slice(0, 80), createdAt: it.created_at }))
-      };
-    });
+      // take recent 3 items as previews per folder
+      folders = rows.map((r) => {
+        const items = db.prepare(
+          `SELECT c.id, c.text, c.created_at
+           FROM chunks c
+           LEFT JOIN documents d ON d.id = c.doc_id
+           WHERE c.user_id = ? AND COALESCE(d.source,'unknown') = ?
+           ORDER BY c.created_at DESC
+           LIMIT 3`
+        ).all(userId, r.source) as Array<any>;
+        return {
+          id: `${r.source}`,
+          source: r.source,
+          type: r.type || "text",
+          count: r.docs,
+          previews: items.map(it => ({ id: it.id, excerpt: String(it.text || '').slice(0, 80), createdAt: it.created_at }))
+        };
+      });
+    }
     res.json({ folders });
   } catch (e: any) {
     res.status(500).json({ error: String(e?.message || e) });
@@ -474,7 +580,7 @@ apiRouter.get("/self-agent/memories/folders", (req: Request, res: Response) => {
 });
 
 // Items inside a folder (by source), grouped by date
-apiRouter.get("/self-agent/memories/folder/items", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/folder/items", async (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -484,31 +590,48 @@ apiRouter.get("/self-agent/memories/folder/items", (req: Request, res: Response)
     const source = String(req.query.source || "");
     if (!userId || !source) return res.status(400).json({ error: "missing userId or source" });
     const limit = Math.min(parseInt(String(req.query.limit || "100"), 10) || 100, 500);
-    const db = getDB();
-    const rows = db.prepare(
-      `SELECT c.id, c.doc_id, c.text, c.created_at, d.type AS doc_type, d.title AS doc_title
-       FROM chunks c
-       LEFT JOIN documents d ON d.id = c.doc_id
-       WHERE c.user_id = ? AND COALESCE(d.source,'unknown') = ?
-       ORDER BY c.created_at DESC
-       LIMIT ?`
-    ).all(userId, source, limit) as Array<any>;
+    let rows: Array<any> = [];
+    if (USE_PG) {
+      await withUserClient(userId, async (c) => {
+        const r = await c.query(
+          `SELECT c.id, c.doc_id, c.text, c.created_at, d.type AS doc_type, d.title AS doc_title
+           FROM chunks c
+           LEFT JOIN documents d ON d.id = c.doc_id
+           WHERE c.user_id = $1 AND COALESCE(d.source,'unknown') = $2
+           ORDER BY c.created_at DESC
+           LIMIT ${limit}`,
+          [userId, source]
+        );
+        rows = r.rows as any[];
+      });
+    } else {
+      const db = getDB();
+      rows = db.prepare(
+        `SELECT c.id, c.doc_id, c.text, c.created_at, d.type AS doc_type, d.title AS doc_title
+         FROM chunks c
+         LEFT JOIN documents d ON d.id = c.doc_id
+         WHERE c.user_id = ? AND COALESCE(d.source,'unknown') = ?
+         ORDER BY c.created_at DESC
+         LIMIT ?`
+      ).all(userId, source, limit) as Array<any>;
+    }
 
     const groups: Record<string, { title: string; date: string; items: any[] }> = {};
     for (const r of rows) {
-      const d = new Date((r.created_at as number) || Date.now());
+      const created = typeof r.created_at === 'number' ? new Date(r.created_at) : new Date(r.created_at || Date.now());
+      const d = created;
       const y = d.getFullYear();
       const m = `${(d.getMonth() + 1).toString().padStart(2, "0")}`;
       const day = `${d.getDate().toString().padStart(2, "0")}`;
       const key = `${y}-${m}-${day}`;
       if (!groups[key]) {
-        const title = d.toLocaleDateString("zh-CN", { dateStyle: "long" });
+  const title = d.toLocaleDateString("en-US", { dateStyle: "long" });
         groups[key] = { title, date: key, items: [] };
       }
       groups[key].items.push({
         id: r.id,
         docId: r.doc_id,
-        createdAt: r.created_at,
+        createdAt: typeof r.created_at === 'number' ? r.created_at : new Date(r.created_at).getTime(),
         category: source,
         type: r.doc_type || "text",
         title: r.doc_title || String(r.text || '').slice(0, 40),
@@ -523,7 +646,7 @@ apiRouter.get("/self-agent/memories/folder/items", (req: Request, res: Response)
 });
 
 // Get full document content by document ID
-apiRouter.get("/self-agent/memories/document/:docId", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/document/:docId", async (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -533,18 +656,33 @@ apiRouter.get("/self-agent/memories/document/:docId", (req: Request, res: Respon
     const { docId } = req.params;
     
     if (!userId || !docId) return res.status(400).json({ error: "missing userId or docId" });
-    
-    const db = getDB();
-    const doc = db.prepare(
-      `SELECT id, user_id, source, type, title, content, metadata, created_at
-       FROM documents
-       WHERE id = ? AND user_id = ?`
-    ).get(docId, userId) as any;
-    
+
+    let doc: any = null;
+    if (USE_PG) {
+      await withUserClient(userId, async (c) => {
+        const r = await c.query(
+          `SELECT id, user_id, source, type, title, content, metadata, created_at
+           FROM documents WHERE id = $1 AND user_id = $2`,
+          [docId, userId]
+        );
+        doc = r.rows?.[0] || null;
+      });
+    } else {
+      const db = getDB();
+      doc = db.prepare(
+        `SELECT id, user_id, source, type, title, content, metadata, created_at
+         FROM documents
+         WHERE id = ? AND user_id = ?`
+      ).get(docId, userId) as any;
+    }
+
     if (!doc) return res.status(404).json({ error: "document not found" });
     
     let meta = null;
-    try { meta = doc.metadata ? JSON.parse(doc.metadata) : null; } catch {}
+    try {
+      if (doc.metadata && typeof doc.metadata === 'string') meta = JSON.parse(doc.metadata);
+      else if (doc.metadata) meta = doc.metadata;
+    } catch {}
     
     res.json({
       id: doc.id,
@@ -553,7 +691,7 @@ apiRouter.get("/self-agent/memories/document/:docId", (req: Request, res: Respon
       title: doc.title,
       content: doc.content,
       metadata: meta,
-      createdAt: doc.created_at,
+      createdAt: typeof doc.created_at === 'number' ? doc.created_at : new Date(doc.created_at).getTime(),
     });
   } catch (e: any) {
     res.status(500).json({ error: String(e?.message || e) });
@@ -561,7 +699,7 @@ apiRouter.get("/self-agent/memories/document/:docId", (req: Request, res: Respon
 });
 
 // Get chunk details with context
-apiRouter.get("/self-agent/memories/chunk/:chunkId", (req: Request, res: Response) => {
+apiRouter.get("/self-agent/memories/chunk/:chunkId", async (req: Request, res: Response) => {
   try {
     const auth = String(req.headers.authorization || "");
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -571,28 +709,61 @@ apiRouter.get("/self-agent/memories/chunk/:chunkId", (req: Request, res: Respons
     const { chunkId } = req.params;
     
     if (!userId || !chunkId) return res.status(400).json({ error: "missing userId or chunkId" });
-    
-    const db = getDB();
-    const chunk = db.prepare(
-      `SELECT c.id, c.doc_id, c.idx, c.text, c.metadata, c.created_at,
-              d.source, d.type, d.title, d.content AS doc_content
-       FROM chunks c
-       LEFT JOIN documents d ON d.id = c.doc_id
-       WHERE c.id = ? AND c.user_id = ?`
-    ).get(chunkId, userId) as any;
-    
+
+    let chunk: any = null;
+    if (USE_PG) {
+      await withUserClient(userId, async (c) => {
+        const r = await c.query(
+          `SELECT c.id, c.doc_id, c.idx, c.text, c.metadata, c.created_at,
+                  d.source, d.type, d.title, d.content AS doc_content
+           FROM chunks c
+           LEFT JOIN documents d ON d.id = c.doc_id
+           WHERE c.id = $1 AND c.user_id = $2`,
+          [chunkId, userId]
+        );
+        chunk = r.rows?.[0] || null;
+      });
+    } else {
+      const db = getDB();
+      chunk = db.prepare(
+        `SELECT c.id, c.doc_id, c.idx, c.text, c.metadata, c.created_at,
+                d.source, d.type, d.title, d.content AS doc_content
+         FROM chunks c
+         LEFT JOIN documents d ON d.id = c.doc_id
+         WHERE c.id = ? AND c.user_id = ?`
+      ).get(chunkId, userId) as any;
+    }
+
     if (!chunk) return res.status(404).json({ error: "chunk not found" });
     
     // Get surrounding chunks for context
-    const siblings = db.prepare(
-      `SELECT id, idx, text
-       FROM chunks
-       WHERE doc_id = ? AND user_id = ?
-       ORDER BY idx ASC`
-    ).all(chunk.doc_id, userId) as Array<any>;
+    let siblings: Array<any> = [];
+    if (USE_PG) {
+      await withUserClient(userId, async (c) => {
+        const r = await c.query(
+          `SELECT id, idx, text
+           FROM chunks
+           WHERE doc_id = $1 AND user_id = $2
+           ORDER BY idx ASC`,
+          [chunk.doc_id, userId]
+        );
+        siblings = r.rows as any[];
+      });
+    } else {
+      const db = getDB();
+      siblings = db.prepare(
+        `SELECT id, idx, text
+         FROM chunks
+         WHERE doc_id = ? AND user_id = ?
+         ORDER BY idx ASC`
+      ).all(chunk.doc_id, userId) as Array<any>;
+    }
     
     let meta = null;
-    try { meta = chunk.metadata ? JSON.parse(chunk.metadata) : null; } catch {}
+    try {
+      if (chunk.metadata && typeof chunk.metadata === 'string') meta = JSON.parse(chunk.metadata);
+      else if (chunk.metadata) meta = chunk.metadata;
+    } catch {}
     
     res.json({
       id: chunk.id,
@@ -600,7 +771,7 @@ apiRouter.get("/self-agent/memories/chunk/:chunkId", (req: Request, res: Respons
       idx: chunk.idx,
       text: chunk.text,
       metadata: meta,
-      createdAt: chunk.created_at,
+      createdAt: typeof chunk.created_at === 'number' ? chunk.created_at : new Date(chunk.created_at).getTime(),
       document: {
         source: chunk.source,
         type: chunk.type,
@@ -722,7 +893,7 @@ apiRouter.post("/self-agent/generate/chat/stream", async (req: Request, res: Res
       res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
     }
 
-    // 持久化聊天到 Memories（source=chat_self_agent）
+    // Persist chat to Memories (source=chat_self_agent)
     try {
       const docId = `chat_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       const title = `Chat with Self Agent @ ${new Date().toLocaleString()}`;
@@ -791,7 +962,7 @@ apiRouter.post("/self-agent/generate/chat", async (req: Request, res: Response) 
     hint: finalHint 
   } as ChatGenerateInput);
 
-  // 持久化聊天到 Memories（source=chat_self_agent）
+  // Persist chat to Memories (source=chat_self_agent)
   try {
     const docId = `chat_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const title = `Chat with Self Agent @ ${new Date().toLocaleString()}`;
@@ -890,9 +1061,9 @@ apiRouter.post("/self-agent/generate/post", async (req: Request, res: Response) 
   if (!parsed.success) return res.status(400).json(parsed.error.flatten());
   // RAG: use recent relevant snippets as context
   const base = parsed.data.context || "";
-  const hits = retrieveRelevant(parsed.data.userId, base || "个性化动态", { topK: 6 });
+  const hits = retrieveRelevant(parsed.data.userId, base || "Personalized dynamics", { topK: 6 });
   const ctx = buildContext(hits.map(h => ({ text: h.text, score: h.score })));
-  const text = await provider.generatePost({ ...parsed.data, context: [base, `上下文:\n${ctx}`].filter(Boolean).join("\n\n") } as PostGenerateInput);
+  const text = await provider.generatePost({ ...parsed.data, context: [base, `Context:\n${ctx}`].filter(Boolean).join("\n\n") } as PostGenerateInput);
   res.json({ text });
 });
 
@@ -913,7 +1084,7 @@ apiRouter.post("/self-agent/provider-info/test", async (req: Request, res: Respo
   }
 
   const Body = z.object({
-    prompt: z.string().default("请简单介绍一下你自己。"),
+    prompt: z.string().default("Please introduce yourself briefly."),
     userId: z.string().optional(),
   });
 
@@ -1108,7 +1279,7 @@ apiRouter.post("/self-agent/admin/rehydrate-instagram", async (req: Request, res
 
 /**
  * GET /api/self-agent/deduplication/stats
- * 获取重复数据统计（不执行删除）
+ * Get duplicate data statistics (without deletion)
  */
 apiRouter.get("/self-agent/deduplication/stats", (req: Request, res: Response) => {
   try {
@@ -1131,7 +1302,7 @@ apiRouter.get("/self-agent/deduplication/stats", (req: Request, res: Response) =
 
 /**
  * POST /api/self-agent/deduplication/execute
- * 执行去重操作
+ * Perform deduplication
  */
 apiRouter.post("/self-agent/deduplication/execute", (req: Request, res: Response) => {
   try {
@@ -1170,7 +1341,7 @@ apiRouter.post("/self-agent/deduplication/execute", (req: Request, res: Response
 
 /**
  * GET /api/self-agent/deduplication/preview
- * 预览重复的文档和 chunks
+ * Preview duplicate documents and chunks
  */
 apiRouter.get("/self-agent/deduplication/preview", (req: Request, res: Response) => {
   try {
@@ -1205,7 +1376,7 @@ apiRouter.get("/self-agent/deduplication/preview", (req: Request, res: Response)
 
 /**
  * GET /api/google-sync/auth-url
- * 生成 Google OAuth 授权 URL
+ * Generate Google OAuth authorization URL
  */
 apiRouter.get("/google-sync/auth-url", (req: Request, res: Response) => {
   try {
@@ -1224,7 +1395,7 @@ apiRouter.get("/google-sync/auth-url", (req: Request, res: Response) => {
 
 /**
  * GET /auth/google/callback
- * Google OAuth 回调处理
+ * Google OAuth callback processing
  */
 app.get("/auth/google/callback", async (req: Request, res: Response) => {
   try {
@@ -1235,13 +1406,13 @@ app.get("/auth/google/callback", async (req: Request, res: Response) => {
       return res.status(400).send("Missing code or state parameter");
     }
 
-    // state 中包含 userId
+    // state contains userId
     const userId = state;
     
-    // 交换 code 获取 tokens
+    // Exchange code for tokens
     const tokens = await exchangeCodeForTokens(code);
     
-    // 获取用户信息
+    // Get user information
     const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
@@ -1252,19 +1423,19 @@ app.get("/auth/google/callback", async (req: Request, res: Response) => {
 
     const userInfo = await userInfoResponse.json() as { name: string; picture: string; email: string };
     
-    // 保存 tokens 和用户信息
+    // Save tokens and user information
     saveGoogleTokens(userId, tokens);
     
-    // 确保用户存在
+    // Ensure user exists
     ensureUser(userId);
     
-    // 更新用户资料
+    // Update user profile
     updateAuthProfile(userId, {
       name: userInfo.name,
       avatar: userInfo.picture,
     });
 
-    // 重定向回前端应用
+    // Redirect back to frontend application
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
     res.redirect(`${frontendUrl}/settings?google_sync=success`);
 
@@ -1277,7 +1448,7 @@ app.get("/auth/google/callback", async (req: Request, res: Response) => {
 
 /**
  * GET /api/google-sync/status
- * 获取 Google 连接状态
+ * Get Google connection status
  */
 apiRouter.get("/google-sync/status", (req: Request, res: Response) => {
   try {
@@ -1293,7 +1464,7 @@ apiRouter.get("/google-sync/status", (req: Request, res: Response) => {
 
 /**
  * POST /api/google-sync/revoke
- * 撤销 Google 连接
+ * Revoke Google connection
  */
 apiRouter.post("/google-sync/revoke", async (req: Request, res: Response) => {
   try {
@@ -1310,7 +1481,7 @@ apiRouter.post("/google-sync/revoke", async (req: Request, res: Response) => {
 
 /**
  * POST /api/google-sync/sync-all
- * 同步所有 Google 服务
+ * Sync all Google services
  */
 apiRouter.post("/google-sync/sync-all", async (req: Request, res: Response) => {
   try {
@@ -1318,7 +1489,7 @@ apiRouter.post("/google-sync/sync-all", async (req: Request, res: Response) => {
     const parsed = Body.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error.flatten());
 
-    // 异步执行，立即返回
+    // Execute asynchronously, return immediately
     syncAllGoogleServices(parsed.data.userId).catch(console.error);
 
     res.json({ ok: true, message: "Sync process started in background." });

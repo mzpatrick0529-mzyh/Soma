@@ -1,6 +1,6 @@
 /**
  * 📥 Unified Data Import Modal
- * 统一数据导入模态框 - 支持 Google/WeChat/Instagram 等多数据源
+ * Unified data import modal - supports multiple data sources like Google/WeChat/Instagram
  */
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,12 +29,18 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { googleDataImportService, type ImportProgress, type GoogleImportStats } from "@/services/googleDataImport";
 import { trainSelfAgent, getTrainingStatus, type TrainingProgress, type TrainingJob } from "@/services/selfAgent";
+import { 
+  WeChatDisclaimerModal, 
+  BiometricConsentModal, 
+  SensitiveInfoLimitationModal 
+} from "@/components/ComplianceModals";
 
 interface UnifiedDataImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
   onComplete?: () => void;
+  userState?: string; // e.g., "IL" for Illinois (for BIPA compliance)
 }
 
 type DataSourceType = "google" | "wechat" | "instagram" | "unknown";
@@ -55,37 +61,37 @@ const dataSourceIcons: Record<DataSourceType, React.ComponentType<{ className?: 
 
 const dataSourceLabels: Record<DataSourceType, string> = {
   google: "Google Takeout",
-  wechat: "WeChat (微信)",
+  wechat: "WeChat",
   instagram: "Instagram",
   unknown: "Unknown",
 };
 
 const stageLabels: Record<ImportProgress['stage'] | TrainingProgress['stage'], string> = {
-  uploading: '上传文件中',
-  parsing: '解析数据中',
-  processing: '处理数据中',
-  vectorizing: '向量化中',
-  preparing: '准备训练',
-  embedding: '生成嵌入向量',
-  training: '训练模型中',
-  validating: '验证模型',
-  deploying: '部署模型',
-  completed: '完成',
-  error: '导入失败',
-  failed: '训练失败',
+  uploading: 'Uploading files',
+  parsing: 'Parsing data',
+  processing: 'Processing data',
+  vectorizing: 'Vectorizing',
+  preparing: 'Preparing training',
+  embedding: 'Generating embeddings',
+  training: 'Training model',
+  validating: 'Validating model',
+  deploying: 'Deploying model',
+  completed: 'Completed',
+  error: 'Import failed',
+  failed: 'Training failed',
 };
 
 const mapJobToProgress = (job: TrainingJob): TrainingProgress => {
   switch (job.status) {
     case 'queued':
-      return { stage: 'preparing', progress: 10, message: '训练任务排队中...' };
+      return { stage: 'preparing', progress: 10, message: 'Training task queued...' };
     case 'running':
-      return { stage: 'training', progress: 65, message: '训练进行中，请稍候...' };
+      return { stage: 'training', progress: 65, message: 'Training in progress, please wait...' };
     case 'succeeded':
-      return { stage: 'completed', progress: 100, message: '训练完成' };
+      return { stage: 'completed', progress: 100, message: 'Training completed' };
     case 'failed':
     default:
-      return { stage: 'failed', progress: 100, message: '训练失败', error: job.error ?? '训练失败，请稍后重试' };
+      return { stage: 'failed', progress: 100, message: 'Training failed', error: job.error ?? 'Training failed, please retry later' };
   }
 };
 
@@ -94,6 +100,7 @@ export const UnifiedDataImportModal = ({
   onClose,
   userId,
   onComplete,
+  userState,
 }: UnifiedDataImportModalProps) => {
   const [stage, setStage] = useState<'select' | 'importing' | 'training' | 'completed'>('select');
   const [selectedFiles, setSelectedFiles] = useState<FileWithSource[]>([]);
@@ -103,6 +110,15 @@ export const UnifiedDataImportModal = ({
   const [error, setError] = useState<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const trainingStartedRef = useRef(false);
+
+  // Compliance states
+  const [showWeChatDisclaimer, setShowWeChatDisclaimer] = useState(false);
+  const [showBiometricConsent, setShowBiometricConsent] = useState(false);
+  const [showSensitiveInfoModal, setShowSensitiveInfoModal] = useState(false);
+  const [wechatAccepted, setWechatAccepted] = useState(false);
+  const [biometricAccepted, setBiometricAccepted] = useState(false);
+  const [sensitiveInfoLimited, setSensitiveInfoLimited] = useState(false);
+  const [complianceCompleted, setComplianceCompleted] = useState(false);
 
   const clearPollTimer = () => {
     if (pollTimerRef.current) {
@@ -124,7 +140,7 @@ export const UnifiedDataImportModal = ({
         if (!cancelled) {
           setLatestStats(null);
           const msg = e?.message || String(e);
-          if (msg.includes('无法连接到后端服务')) {
+          if (msg.includes('Cannot connect to backend service')) {
             setError(msg);
           }
         }
@@ -151,7 +167,7 @@ export const UnifiedDataImportModal = ({
   const detectSourceFromFilename = (filename: string): DataSourceType => {
     const lower = filename.toLowerCase();
     if (lower.includes('takeout') || lower.includes('google')) return 'google';
-    if (lower.includes('wechat') || lower.includes('weixin') || lower.includes('微信')) return 'wechat';
+    if (lower.includes('wechat') || lower.includes('weixin') || lower.includes('WeChat')) return 'wechat';
     if (lower.includes('instagram') || lower.includes('ig')) return 'instagram';
     return 'unknown';
   };
@@ -160,9 +176,107 @@ export const UnifiedDataImportModal = ({
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const startComplianceFlow = () => {
+    // Check if compliance modals are needed
+    const hasWeChatFiles = selectedFiles.some(f => f.detectedSource === 'wechat');
+    const hasMediaFiles = selectedFiles.some(f => 
+      f.file.name.match(/\.(jpg|jpeg|png|mp3|mp4|wav|m4a|mov)$/i)
+    );
+
+    if (hasWeChatFiles && !wechatAccepted) {
+      setShowWeChatDisclaimer(true);
+      return;
+    }
+
+    if (hasMediaFiles && !biometricAccepted) {
+      setShowBiometricConsent(true);
+      return;
+    }
+
+    if (!complianceCompleted) {
+      setShowSensitiveInfoModal(true);
+      return;
+    }
+
+    // All compliance checks passed, proceed with import
+    handleImport();
+  };
+
+  const handleWeChatAccept = () => {
+    setWechatAccepted(true);
+    setShowWeChatDisclaimer(false);
+    toast.success("WeChat data import risks confirmed");
+    
+    // Continue with next compliance check
+    const hasMediaFiles = selectedFiles.some(f => 
+      f.file.name.match(/\.(jpg|jpeg|png|mp3|mp4|wav|m4a|mov)$/i)
+    );
+    
+    if (hasMediaFiles && !biometricAccepted) {
+      setShowBiometricConsent(true);
+    } else if (!complianceCompleted) {
+      setShowSensitiveInfoModal(true);
+    } else {
+      handleImport();
+    }
+  };
+
+  const handleWeChatDecline = () => {
+    setShowWeChatDisclaimer(false);
+    setSelectedFiles(prev => prev.filter(f => f.detectedSource !== 'wechat'));
+    toast.info("WeChat files removed");
+  };
+
+  const handleBiometricAccept = () => {
+    setBiometricAccepted(true);
+    setShowBiometricConsent(false);
+    toast.success("Biometric data collection authorized");
+
+    // Log consent (for compliance)
+    console.log("[Biometric Consent] User granted consent", {
+      userId,
+      timestamp: new Date().toISOString(),
+      userState,
+    });
+    
+    if (!complianceCompleted) {
+      setShowSensitiveInfoModal(true);
+    } else {
+      handleImport();
+    }
+  };
+
+  const handleBiometricDecline = () => {
+    setShowBiometricConsent(false);
+    toast.warning("Voice and facial features will not be processed");
+    // Still allow import but flag to skip biometric processing
+  };
+
+  const handleSensitiveInfoAccept = (limitUsage: boolean) => {
+    setSensitiveInfoLimited(limitUsage);
+    setComplianceCompleted(true);
+    setShowSensitiveInfoModal(false);
+
+    if (limitUsage) {
+      toast.info("Sensitive information use limited to core services");
+    } else {
+      toast.success("Compliance confirmation completed");
+    }
+
+    // Log compliance choice
+    console.log("[Sensitive Info] User choice", {
+      userId,
+      limitUsage,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Now proceed with actual import
+    handleImport();
+  };
+
   const handleImport = async () => {
     if (selectedFiles.length === 0) {
-      setError('请先选择文件');
+      setError('Please select files first');
       return;
     }
 
@@ -178,7 +292,7 @@ export const UnifiedDataImportModal = ({
     trainingStartedRef.current = false;
 
     try {
-      // 使用多文件上传 API
+      // Using multi-file upload API
       const formData = new FormData();
       selectedFiles.forEach(({ file }) => formData.append('files', file));
       formData.append('userId', userId);
@@ -190,23 +304,23 @@ export const UnifiedDataImportModal = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '上传失败');
+        throw new Error(errorData.error || 'Upload failed');
       }
 
       const { importIds } = await response.json();
-      toast.info(`${importIds.length} 个文件上传成功，正在解析数据`);
+      toast.info(`${importIds.length} files uploaded successfully, parsing data`);
 
-      // 更新 importId
+      // Update importId
       setImportingFiles(prev => prev.map((f, i) => ({
         ...f,
         importId: importIds[i],
       })));
 
-      // 轮询所有导入进度
+      // Polling all import progress
       startImportPolling(importIds);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导入失败');
-      toast.error(err instanceof Error ? err.message : '数据导入失败');
+      setError(err instanceof Error ? err.message : 'Import failed');
+      toast.error(err instanceof Error ? err.message : 'Data import failed');
       setStage('select');
       setImportingFiles([]);
       trainingStartedRef.current = false;
@@ -226,21 +340,21 @@ export const UnifiedDataImportModal = ({
           progress: progresses[i],
         })));
 
-        // 检查是否全部完成
+        // Check if all completed
         const allCompleted = progresses.every(p => p.stage === 'completed');
         const anyError = progresses.some(p => p.stage === 'error');
 
         if (anyError) {
           clearInterval(pollInterval);
           const firstError = progresses.find(p => p.stage === 'error');
-          setError(firstError?.error || '某些文件导入失败');
-          toast.error('部分文件导入失败');
+          setError(firstError?.error || 'Some files failed to import');
+          toast.error('Partial file import failed');
         }
 
         if (allCompleted && !trainingStartedRef.current) {
           clearInterval(pollInterval);
           trainingStartedRef.current = true;
-          toast.success('数据导入完成，准备训练 AI');
+          toast.success('Data import completed, preparing to train AI');
           await googleDataImportService.getImportStats(userId).then(setLatestStats);
           setTimeout(() => startTraining(), 800);
         }
@@ -249,8 +363,8 @@ export const UnifiedDataImportModal = ({
       }
     }, 1000);
 
-    // 设置超时清理
-    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000); // 5分钟超时
+    // Setting timeout cleanup
+    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000); // 5 minute timeout
   };
 
   const startTraining = async () => {
@@ -264,10 +378,10 @@ export const UnifiedDataImportModal = ({
 
       const totalDocs = stats?.totals?.documents ?? 0;
       if (totalDocs === 0) {
-        throw new Error('未找到可用于训练的数据，请先完成导入');
+        throw new Error('No data available for training, please complete import first');
       }
 
-      toast.info(`开始训练 Self AI Agent，共 ${stats.totals.chunks ?? totalDocs} 条记忆`);
+      toast.info(`Starting to train Self AI Agent, total ${stats.totals.chunks ?? totalDocs} memories`);
 
       const job = await trainSelfAgent({
         userId,
@@ -284,7 +398,7 @@ export const UnifiedDataImportModal = ({
       setTrainingProgress(initialProgress);
 
       if (initialProgress.stage === 'completed') {
-        toast.success('Self AI Agent 训练完成！');
+        toast.success('Self AI Agent Training completed！');
         setStage('completed');
         onComplete?.();
         trainingStartedRef.current = false;
@@ -299,7 +413,7 @@ export const UnifiedDataImportModal = ({
 
           if (progress.stage === 'completed') {
             clearPollTimer();
-            toast.success('Self AI Agent 训练完成！');
+            toast.success('Self AI Agent Training completed！');
             setStage('completed');
             onComplete?.();
             trainingStartedRef.current = false;
@@ -307,15 +421,15 @@ export const UnifiedDataImportModal = ({
             const s = await googleDataImportService.getImportStats(userId);
             if ((s?.totals?.chunks ?? 0) > 0) {
               clearPollTimer();
-              toast.success('训练完成（根据统计确认）');
+              toast.success('Training completed (confirmed by statistics)');
               setStage('completed');
-              setTrainingProgress({ stage: 'completed', progress: 100, message: '训练完成' });
+              setTrainingProgress({ stage: 'completed', progress: 100, message: 'Training completed' });
               onComplete?.();
               trainingStartedRef.current = false;
             } else {
               clearPollTimer();
-              setError(progress.error ?? '训练失败');
-              toast.error('训练失败');
+              setError(progress.error ?? 'Training failed');
+              toast.error('Training failed');
               trainingStartedRef.current = false;
             }
           }
@@ -324,8 +438,8 @@ export const UnifiedDataImportModal = ({
         }
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '训练失败');
-      toast.error(err instanceof Error ? err.message : '无法启动训练');
+      setError(err instanceof Error ? err.message : 'Training failed');
+      toast.error(err instanceof Error ? err.message : 'Unable to start training');
       setStage('select');
       setTrainingProgress(null);
       trainingStartedRef.current = false;
@@ -334,7 +448,7 @@ export const UnifiedDataImportModal = ({
 
   const handleClose = () => {
     if (stage === 'importing' || stage === 'training') {
-      if (!confirm('导入/训练正在进行中，确定要关闭吗？')) {
+      if (!confirm('Import/training in progress, are you sure you want to close?')) {
         return;
       }
     }
@@ -352,21 +466,21 @@ export const UnifiedDataImportModal = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>导入个人数据</DialogTitle>
+          <DialogTitle>Import Personal Data</DialogTitle>
           <DialogDescription>
-            支持导入 Google Takeout、微信、Instagram 等数据源
+            Supports importing data sources like Google Takeout, WeChat, Instagram, etc.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* 文件选择阶段 */}
+          {/* File selection stage */}
           {stage === 'select' && (
             <>
               <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <span className="text-sm font-medium text-primary hover:text-primary/80">
-                    选择文件
+                    Select Files
                   </span>
                   <input
                     id="file-upload"
@@ -378,14 +492,14 @@ export const UnifiedDataImportModal = ({
                   />
                 </label>
                 <p className="text-xs text-muted-foreground mt-2">
-                  支持 .zip, .tgz, .tar.gz 格式，可同时选择多个文件
+                  Supports .zip, .tgz, .tar.gz formats, can select multiple files simultaneously
                 </p>
               </div>
 
-              {/* 已选文件列表 */}
+              {/* Selected files list */}
               {selectedFiles.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">已选择 {selectedFiles.length} 个文件：</h4>
+                  <h4 className="text-sm font-medium">Selected {selectedFiles.length} files:</h4>
                   {selectedFiles.map((fileWithSource, index) => {
                     const Icon = dataSourceIcons[fileWithSource.detectedSource || 'unknown'];
                     return (
@@ -425,28 +539,28 @@ export const UnifiedDataImportModal = ({
 
               <div className="flex gap-3">
                 <Button
-                  onClick={handleImport}
+                  onClick={startComplianceFlow}
                   disabled={selectedFiles.length === 0}
                   className="flex-1"
                 >
-                  开始导入并训练
+                  Start Import and Training
                 </Button>
                 <Button variant="outline" onClick={handleClose}>
-                  取消
+                  Cancel
                 </Button>
               </div>
 
-              {/* 历史统计 */}
+              {/* Historical Statistics */}
               {latestStats && (
                 <div className="pt-4 border-t space-y-2">
-                  <h4 className="text-sm font-medium">当前统计</h4>
+                  <h4 className="text-sm font-medium">Current Statistics</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground">总文档数</p>
+                      <p className="text-muted-foreground">Total Documents</p>
                       <p className="font-semibold">{latestStats.totals.documents}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">总记忆块数</p>
+                      <p className="text-muted-foreground">Total Memory Blocks</p>
                       <p className="font-semibold">{latestStats.totals.chunks}</p>
                     </div>
                   </div>
@@ -455,10 +569,10 @@ export const UnifiedDataImportModal = ({
             </>
           )}
 
-          {/* 导入阶段 */}
+          {/* Import stage */}
           {stage === 'importing' && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">正在导入数据...</h3>
+              <h3 className="text-lg font-semibold">Importing data...</h3>
               {importingFiles.map((fileWithProgress, index) => {
                 const Icon = dataSourceIcons[fileWithProgress.detectedSource || 'unknown'];
                 const progress = fileWithProgress.progress;
@@ -469,7 +583,7 @@ export const UnifiedDataImportModal = ({
                       <div className="flex-1">
                         <p className="text-sm font-medium">{fileWithProgress.file.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {progress ? stageLabels[progress.stage] : '等待中...'}
+                          {progress ? stageLabels[progress.stage] : 'Waiting...'}
                         </p>
                       </div>
                       {progress?.stage === 'completed' && (
@@ -488,13 +602,13 @@ export const UnifiedDataImportModal = ({
             </div>
           )}
 
-          {/* 训练阶段 */}
+          {/* Training stage */}
           {stage === 'training' && trainingProgress && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <Brain className="h-8 w-8 text-primary animate-pulse" />
                 <div>
-                  <h3 className="text-lg font-semibold">训练 Self AI Agent</h3>
+                  <h3 className="text-lg font-semibold">Training Self AI Agent</h3>
                   <p className="text-sm text-muted-foreground">
                     {trainingProgress.message || stageLabels[trainingProgress.stage]}
                   </p>
@@ -502,28 +616,48 @@ export const UnifiedDataImportModal = ({
               </div>
               <Progress value={trainingProgress.progress} />
               <p className="text-sm text-center text-muted-foreground">
-                {trainingProgress.progress}% 完成
+                {trainingProgress.progress}% Completed
               </p>
             </div>
           )}
 
-          {/* 完成阶段 */}
+          {/* Completed stage */}
           {stage === 'completed' && (
             <div className="text-center space-y-4">
               <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
               <div>
-                <h3 className="text-lg font-semibold">训练完成！</h3>
+                <h3 className="text-lg font-semibold">Training completed！</h3>
                 <p className="text-sm text-muted-foreground">
-                  Self AI Agent 已成功学习您的个人数据
+                  Self AI Agent has successfully learned your personal data
                 </p>
               </div>
               <Button onClick={handleClose} className="w-full">
-                开始使用
+                Get Started
               </Button>
             </div>
           )}
         </div>
       </DialogContent>
+
+      {/* Compliance Modals */}
+      <WeChatDisclaimerModal
+        open={showWeChatDisclaimer}
+        onAccept={handleWeChatAccept}
+        onDecline={handleWeChatDecline}
+      />
+
+      <BiometricConsentModal
+        open={showBiometricConsent}
+        onAccept={handleBiometricAccept}
+        onDecline={handleBiometricDecline}
+        userState={userState}
+      />
+
+      <SensitiveInfoLimitationModal
+        open={showSensitiveInfoModal}
+        onAccept={handleSensitiveInfoAccept}
+        onClose={() => setShowSensitiveInfoModal(false)}
+      />
     </Dialog>
   );
 };

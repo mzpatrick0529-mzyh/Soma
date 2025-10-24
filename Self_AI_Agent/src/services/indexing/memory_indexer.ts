@@ -1,6 +1,6 @@
 /**
  * Memory Indexer Service
- * 统一管理wechat/instagram/google的数据索引和检索
+ * 统一管理wechat/instagram/google的数据索引and检索
  */
 
 import fs from 'fs/promises';
@@ -210,7 +210,7 @@ export async function getAllSourcesStats(): Promise<Record<string, MemorySource>
 }
 
 /**
- * 保存处理后的文档到processed目录
+ * Save处理后的文档到processed目录
  */
 export async function saveProcessedDocument(
   source: 'wechat' | 'instagram' | 'google',

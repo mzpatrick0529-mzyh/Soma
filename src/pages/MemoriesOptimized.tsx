@@ -87,7 +87,7 @@ const MemoriesOptimized = () => {
   const loadTimeline = async (reset = false) => {
     if (loading || (!hasMore && !reset)) return;
     if (!user?.email && !user?.id) {
-      toast.error("请先登录");
+      toast.error("Please login first");
       return;
     }
 
@@ -105,7 +105,7 @@ const MemoriesOptimized = () => {
       setCursor(result.nextCursor);
       setHasMore(Boolean(result.nextCursor));
     } catch (error: any) {
-      toast.error(`加载失败: ${error.message}`);
+      toast.error(`Failed to load: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -378,7 +378,7 @@ const MemoriesOptimized = () => {
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-500">加载中...</p>
+              <p className="text-gray-500">Loading...</p>
             </div>
           </div>
         ) : filteredSections.length === 0 ? (
@@ -528,7 +528,7 @@ const MemoriesOptimized = () => {
                   variant="outline"
                   className="rounded-full"
                 >
-                  {loading ? "加载中..." : "加载更多"}
+                  {loading ? "Loading..." : "加载更多"}
                 </Button>
               </div>
             )}
@@ -551,11 +551,11 @@ const MemoriesOptimized = () => {
         onComplete={() => {
           setShowImportModal(false);
           loadTimeline(true);
-          toast.success("数据导入完成！");
+          toast.success("数据导入Completed！");
         }}
       />
 
-      {/* Photo Picker - 临时媒体选择（不保存到数据库） */}
+      {/* Photo Picker - 临时媒体选择（不Save到数据库） */}
       {showPhotoPicker && (
         <PhotoPicker
           isOpen={showPhotoPicker}
@@ -563,7 +563,7 @@ const MemoriesOptimized = () => {
           onSelect={(assets) => {
             addTempAssets(assets);
             setShowPhotoPicker(false);
-            toast.success(`已选择 ${assets.length} 个媒体文件（临时存储，仅供 Self Agent 使用）`);
+            toast.success(`Selected ${assets.length} 个媒体文件（临时存储，仅供 Self Agent 使用）`);
           }}
           maxCount={20}
           allowVideo={true}

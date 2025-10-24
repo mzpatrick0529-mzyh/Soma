@@ -34,7 +34,7 @@ export const GlobalLoading = ({ className }: GlobalLoadingProps) => {
           {/* 加载文字 */}
           <div className="text-center">
             <p className="font-medium text-foreground">
-              {loadingMessage || "加载中..."}
+              {loadingMessage || "Loading..."}
             </p>
             
             {progress !== undefined && (
@@ -60,7 +60,7 @@ interface InlineLoadingProps {
 }
 
 export const InlineLoading = ({ 
-  message = "加载中...", 
+  message = "Loading...", 
   size = "md",
   className 
 }: InlineLoadingProps) => {

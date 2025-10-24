@@ -1,6 +1,6 @@
 /**
  * Google OAuth Service
- * 处理 Google OAuth 授权流程和 token 管理
+ * 处理 Google OAuth 授权流程and token 管理
  */
 import fetch from "node-fetch";
 import { getDB } from "../db";
@@ -63,7 +63,7 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokens>
 }
 
 /**
- * 刷新 access token
+ * Refresh access token
  */
 export async function refreshAccessToken(refreshToken: string): Promise<GoogleTokens> {
   const response = await fetch(googleOAuthConfig.tokenUrl, {
@@ -86,7 +86,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
 }
 
 /**
- * 获取用户信息
+ * Get user information
  */
 export async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
   const response = await fetch(googleOAuthConfig.userInfoUrl, {
@@ -102,7 +102,7 @@ export async function getGoogleUserInfo(accessToken: string): Promise<GoogleUser
 }
 
 /**
- * 保存用户的 Google tokens 到数据库
+ * Save用户的 Google tokens 到数据库
  */
 export function saveGoogleTokens(userId: string, tokens: GoogleTokens, userInfo?: GoogleUserInfo) {
   const db = getDB();
@@ -174,7 +174,7 @@ export function getGoogleTokens(userId: string): {
 }
 
 /**
- * 获取有效的 access token（自动刷新过期的）
+ * 获取有效的 access token（AutoRefresh过期的）
  */
 export async function getValidAccessToken(userId: string): Promise<string | null> {
   const tokens = getGoogleTokens(userId);
@@ -186,7 +186,7 @@ export async function getValidAccessToken(userId: string): Promise<string | null
     return tokens.accessToken;
   }
 
-  // Token 过期，尝试刷新
+  // Token 过期，尝试Refresh
   if (!tokens.refreshToken) {
     console.error("[google-oauth] No refresh token available for user:", userId);
     return null;

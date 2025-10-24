@@ -1,6 +1,6 @@
 /**
  * 📸 Memories Page - Enhanced with Chat Style
- * 完全对标 Chat 界面的设计风格和动画效果
+ * Fully aligned with Chat interface design style and animation effects
  */
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -71,12 +71,12 @@ const categoryIcons: Record<CategoryFilter, any> = {
 };
 
 const categoryLabels: Record<CategoryFilter, string> = {
-  all: "全部",
+  all: "All",
   gmail: "Gmail",
   drive: "Drive",
-  photos: "相册",
-  calendar: "日历",
-  maps: "地图",
+  photos: "Photos",
+  calendar: "Calendar",
+  maps: "Maps",
 };
 
 const MemoriesEnhanced = () => {
@@ -99,7 +99,7 @@ const MemoriesEnhanced = () => {
   const loadTimeline = async (reset = false) => {
     if (loading || (!hasMore && !reset)) return;
     if (!user?.email && !user?.id) {
-      toast.error("请先登录");
+      toast.error("Please login first");
       return;
     }
 
@@ -125,7 +125,7 @@ const MemoriesEnhanced = () => {
       setCursor(result.nextCursor);
       setHasMore(Boolean(result.nextCursor));
     } catch (error: any) {
-      toast.error(`加载失败: ${error.message}`);
+      toast.error(`Failed to load: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ const MemoriesEnhanced = () => {
     return date.getFullYear() + "年";
   };
 
-  // 过滤搜索和分类
+  // 过滤搜索and分类
   const filteredSections = sections
     .map((section) => ({
       ...section,
@@ -248,7 +248,7 @@ const MemoriesEnhanced = () => {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              {totalItems > 0 ? `共 ${totalItems} 条记忆` : "还没有记忆，从导入数据开始"}
+              {totalItems > 0 ? `共 ${totalItems} memories` : "还没有记忆，从导入数据开始"}
             </motion.p>
           </div>
 
@@ -404,7 +404,7 @@ const MemoriesEnhanced = () => {
         {loading && sections.length === 0 ? (
           <div className="text-center py-20">
             <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500 mt-4">加载中...</p>
+            <p className="text-sm text-gray-500 mt-4">Loading...</p>
           </div>
         ) : filteredSections.length === 0 ? (
           <Card className="p-12 text-center bg-white/60 backdrop-blur-sm">
@@ -503,7 +503,7 @@ const MemoriesEnhanced = () => {
                                 <div className="flex items-center justify-between mt-auto">
                                   <div className="flex items-center gap-1 text-[10px] text-gray-500">
                                     <Clock className="w-3 h-3" />
-                                    {new Date(item.createdAt).toLocaleDateString("zh-CN", {
+                                    {new Date(item.createdAt).toLocaleDateString("en-US", {
                                       month: "numeric",
                                       day: "numeric",
                                     })}
@@ -534,7 +534,7 @@ const MemoriesEnhanced = () => {
                                     </Badge>
                                   </div>
                                   <p className="text-xs text-gray-500 mb-1">
-                                    {item.source || "Memory"} · {new Date(item.createdAt).toLocaleDateString("zh-CN")}
+                                    {item.source || "Memory"} · {new Date(item.createdAt).toLocaleDateString("en-US")}
                                   </p>
                                   <p className="text-sm line-clamp-2 text-gray-600">
                                     {preview.content}
@@ -575,7 +575,7 @@ const MemoriesEnhanced = () => {
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      加载中...
+                      Loading...
                     </>
                   ) : (
                     <>加载更多</>
@@ -593,7 +593,7 @@ const MemoriesEnhanced = () => {
         onClose={() => setShowImportModal(false)}
         userId={user?.email || user?.id || ""}
         onComplete={() => {
-          toast.success("导入完成！");
+          toast.success("导入Completed！");
           loadTimeline(true);
         }}
       />

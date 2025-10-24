@@ -1,16 +1,19 @@
 /**
  * WeChat Data Importer
- * 支持解析微信导出的聊天记录、图片、文件等
+ * 支持解析WeChat导出的聊天记录、图片、文件等
  * 优化版本：增强错误处理、支持多种编码、改进内容解析
  */
 import fg from "fast-glob";
 import fs from "fs";
 import path from "path";
 import { ensureUser, insertDocument, insertChunk, insertVector } from "../db";
+import { ensureUserPg, insertDocumentPg, insertChunkPg } from "../db/pgWrites";
+import { findDuplicateDocByContentPg, findDuplicateDocByMediaHashPg } from "../db/pgReads";
 import { stripHtml, normalizeText } from "../utils/text";
 import { chunkText } from "../pipeline/chunk";
 import { embedText } from "../pipeline/embeddings";
 import { summarizeMediaByPath } from "../utils/media";
+import crypto from "crypto";
 
 function uid(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2)}${Date.now()}`;
@@ -77,9 +80,16 @@ function cleanInvalidUtf8(text: string): string {
 
 export async function importWeChatData(userId: string, dataDir: string): Promise<ImportStats> {
   console.log(`[wechat-import] Starting import for user ${userId} from ${dataDir}`);
+  const USE_PG = (process.env.STORAGE_BACKEND || '').toLowerCase() === 'pg';
+  // 默认关闭双写，避免本地落盘；如需兼容可显式设置为 '1'
+  const DUAL_WRITE = (process.env.DUAL_WRITE_SQLITE_WHEN_PG || '0') === '1' && USE_PG;
   
   try {
-    ensureUser(userId);
+    if (USE_PG) {
+      await ensureUserPg(userId);
+    } else {
+      ensureUser(userId);
+    }
   } catch (e) {
     console.error("[wechat-import] Failed to ensure user:", e);
     throw e;
@@ -111,6 +121,7 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
   let stats: ImportStats = { files: 0, docs: 0, chunks: 0 };
   let successCount = 0;
   let errorCount = 0;
+  let skippedDuplicates = 0;
 
   for (const file of entries) {
   const ext = path.extname(file).toLowerCase();
@@ -127,7 +138,7 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
       const stat = fs.statSync(file);
       if (!stat.isFile()) continue;
       
-      // 跳过加密文件和已知的二进制格式
+      // 跳过加密文件and已知的二进制格式
       const filename = path.basename(file).toLowerCase();
       if (filename.endsWith('.enc') || filename.endsWith('.tar.enc') || 
           filename.endsWith('.dat') || filename.endsWith('.db') || 
@@ -171,10 +182,16 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
   const isVideo = /\.(mp4|mov|avi|mkv|webm|hevc)$/i.test(lower);
   const isAudio = /\.(mp3|m4a|aac|wav|flac|ogg)$/i.test(lower);
 
+      let mediaSha256: string | undefined;
       if (isImage || isVideo || isAudio) {
         // 使用媒体摘要工具生成可用于 RAG 的文本
         const summary = await summarizeMediaByPath(file);
         content = summary.content;
+        // 计算媒体文件 sha256 以便严格去重
+        try {
+          const buf = fs.readFileSync(file);
+          mediaSha256 = crypto.createHash('sha256').update(buf).digest('hex');
+        } catch {}
         // 在下面 insertDocument 时合并 metadata
       } else if (ext === ".json" || (ext === "" && looksLikeJson)) {
         try {
@@ -206,10 +223,38 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
         continue;
       }
 
-      // 插入文档
+      // 插入文档（去重：完全相同则跳过）
       const docId = uid("doc");
       try {
-        const baseMeta: any = { path: file, platform: "wechat", subSource: source };
+        const contentSha256 = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+        const baseMeta: any = { path: file, platform: "wechat", subSource: source, content_sha256: contentSha256 };
+        if (mediaSha256) baseMeta.media_sha256 = mediaSha256;
+
+        // 去重判断（优先用媒体hash，否则用内容hash）
+        if (USE_PG) {
+          let dupId: string | null = null;
+          if (mediaSha256) dupId = await findDuplicateDocByMediaHashPg(userId, mediaSha256);
+          if (!dupId) dupId = await findDuplicateDocByContentPg(userId, content, 'wechat', type);
+          if (dupId) {
+            console.log(`[wechat-import] Skip duplicate file: ${file} -> existing doc ${dupId}`);
+            skippedDuplicates++;
+            stats.files += 1; // 文件处理过
+            continue; // 跳过后续 chunking/向量化
+          }
+        } else {
+          // SQLite 回退：直接按内容全等判断
+          try {
+            const { getDB } = await import('../db');
+            const db = getDB();
+            const dup = db.prepare(`SELECT id FROM documents WHERE user_id = ? AND content = ? LIMIT 1`).get(userId, content) as any;
+            if (dup?.id) {
+              console.log(`[wechat-import] Skip duplicate (sqlite): ${file} -> ${dup.id}`);
+              skippedDuplicates++;
+              stats.files += 1;
+              continue;
+            }
+          } catch {}
+        }
         // 如果是媒体文件，并且上面生成了 summary，尝试合并其结构化元数据
         if (isImage || isVideo || isAudio) {
           try {
@@ -219,15 +264,39 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
             title = sm.title || title;
           } catch {}
         }
-        insertDocument({ 
-          id: docId, 
-          user_id: userId, 
-          source: "wechat", // 统一使用 wechat 作为主分类
-          type, 
-          title, 
-          content, 
-          metadata: baseMeta 
-        });
+        if (USE_PG) {
+          await insertDocumentPg({
+            id: docId,
+            user_id: userId,
+            source: "wechat",
+            type,
+            title,
+            content,
+            metadata: baseMeta,
+          });
+          if (DUAL_WRITE) {
+            // 兼容前端 Memories 读取 SQLite 的路径（临时双写）
+            insertDocument({ 
+              id: docId, 
+              user_id: userId, 
+              source: "wechat",
+              type, 
+              title, 
+              content, 
+              metadata: baseMeta 
+            });
+          }
+        } else {
+          insertDocument({ 
+            id: docId, 
+            user_id: userId, 
+            source: "wechat", // 统一使用 wechat 作为主分类
+            type, 
+            title, 
+            content, 
+            metadata: baseMeta 
+          });
+        }
         stats.docs += 1;
       } catch (dbError) {
         console.error(`[wechat-import] Failed to insert document for ${file}:`, dbError);
@@ -235,25 +304,48 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
         continue;
       }
 
-      // 分块和向量化
+      // 分块and向量化
       try {
         const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
         
         for (let idx = 0; idx < chunks.length; idx++) {
           const text = chunks[idx];
           const chunkId = uid("chk");
-          
-          insertChunk({ 
-            id: chunkId, 
-            doc_id: docId, 
-            user_id: userId, 
-            idx, 
-            text, 
-            metadata: { path: file, platform: "wechat" } 
-          });
-          
-          const vec = embedText(text);
-          insertVector(chunkId, userId, vec);
+          if (USE_PG) {
+            const vec = embedText(text, 1536);
+            await insertChunkPg({
+              id: chunkId,
+              doc_id: docId,
+              user_id: userId,
+              idx,
+              text,
+              metadata: { path: file, platform: "wechat" },
+              embedding: vec,
+            });
+            if (DUAL_WRITE) {
+              // 双写到 SQLite 以便前端现有页面可见
+              insertChunk({ 
+                id: chunkId, 
+                doc_id: docId, 
+                user_id: userId, 
+                idx, 
+                text, 
+                metadata: { path: file, platform: "wechat" } 
+              });
+              insertVector(chunkId, userId, vec);
+            }
+          } else {
+            insertChunk({ 
+              id: chunkId, 
+              doc_id: docId, 
+              user_id: userId, 
+              idx, 
+              text, 
+              metadata: { path: file, platform: "wechat" } 
+            });
+            const vec = embedText(text);
+            insertVector(chunkId, userId, vec);
+          }
           stats.chunks += 1;
         }
       } catch (chunkError) {
@@ -272,7 +364,7 @@ export async function importWeChatData(userId: string, dataDir: string): Promise
     }
   }
 
-  console.log(`[wechat-import] Import completed: ${successCount} succeeded, ${errorCount} failed`);
+  console.log(`[wechat-import] Import completed: ${successCount} succeeded, ${errorCount} failed, ${skippedDuplicates} skipped (duplicates)`);
   console.log(`[wechat-import] Stats:`, stats);
   
   return stats;
@@ -409,16 +501,16 @@ function parseWeChatTxt(raw: string): string {
     for (const line of lines) {
       let cleanLine = line.trim();
       
-      // 跳过分隔线和无意义的短行
+      // 跳过分隔线and无意义的短行
       if (cleanLine.length < 3 || /^[-=_]{3,}$/.test(cleanLine)) {
         continue;
       }
       
-      // 尝试提取消息内容（去除时间戳等元信息）
+      // 尝试提Cancel息内容（去除时间戳等元信息）
       // 格式1: 2024-01-01 12:34:56 [张三] 消息内容
       cleanLine = cleanLine.replace(/^\d{4}[-\/年]\d{1,2}[-\/月]\d{1,2}[日]?\s+\d{1,2}:\d{2}(:\d{2})?\s*/g, "");
       
-      // 格式2: [用户名] 或 用户名: 开头
+      // 格式2: [Username] 或 Username: 开头
       cleanLine = cleanLine.replace(/^\[([^\]]+)\]\s*[:：]?\s*/g, "$1: ");
       
       // 格式3: 时间戳 (Unix timestamp)

@@ -33,7 +33,7 @@ export default function SelfAgentChat() {
     const text = input.trim();
     if (!text || loading) return;
     if (!userId) {
-      setMsgs((m) => [...m, { role: "assistant", content: "请先登录后再与 Self Agent 对话。" }]);
+      setMsgs((m) => [...m, { role: "assistant", content: "Please login first后再与 Self Agent 对话。" }]);
       return;
     }
     setInput("");
@@ -41,7 +41,7 @@ export default function SelfAgentChat() {
     setMsgs(history);
     setLoading(true);
     try {
-      const hint = target !== "self" ? `请模拟与联系人「${target}」的聊天语境和我与Ta的互动风格。` : undefined;
+      const hint = target !== "self" ? `请模拟与联系人「${target}」的聊天语境and我与Ta的互动风格。` : undefined;
       // 流式优先，失败则回退非流式
       setStreaming(true);
       let acc = "";

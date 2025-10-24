@@ -1,6 +1,6 @@
 /**
  * 临时媒体存储 Store
- * 用于 Memories 界面选择的照片/视频，不保存到数据库
+ * 用于 Memories 界面选择的照片/视频，不Save到数据库
  * 仅在与 Self Agent 对话时可用
  */
 

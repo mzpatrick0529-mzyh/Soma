@@ -17,6 +17,8 @@ import Settings from "./pages/SettingsNew";
 import { AuthPage } from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ProviderDiagnostics from "./pages/ProviderDiagnostics";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +33,7 @@ const App = () => (
         <NetworkStatus />
         <BrowserRouter>
         <Routes>
-          {/* 公开路由 - 登录页 */}
+          {/* Public Route - Login Page */}
           <Route 
             path="/auth" 
             element={
@@ -41,7 +43,25 @@ const App = () => (
             } 
           />
           
-          {/* 受保护的路由 */}
+          {/* Legal Document Routes - No Layout Needed */}
+          <Route 
+            path="/legal/privacy-policy" 
+            element={
+              <ProtectedRoute requireAuth={true}>
+                <PrivacyPolicy />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/legal/terms-of-service" 
+            element={
+              <ProtectedRoute requireAuth={true}>
+                <TermsOfServicePage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Protected Routes - With Layout */}
           <Route 
             path="/*" 
             element={

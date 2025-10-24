@@ -1,6 +1,6 @@
 /**
  * 📥 Google Data Import Modal
- * 用于导入 Google Takeout 数据并开始训练 Self AI Agent
+ * 用于导入 Google Takeout 数据并开始Training Self AI Agent
  */
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,18 +51,18 @@ const dataSourceIcons: Record<
 };
 
 const stageLabels: Record<ImportProgress['stage'] | TrainingProgress['stage'], string> = {
-  uploading: '上传文件中',
-  parsing: '解析数据中',
-  processing: '处理数据中',
-  vectorizing: '向量化中',
-  preparing: '准备训练',
-  embedding: '生成嵌入向量',
-  training: '训练模型中',
-  validating: '验证模型',
-  deploying: '部署模型',
-  completed: '完成',
-  error: '导入失败',
-  failed: '训练失败',
+  uploading: 'Uploading files',
+  parsing: 'Parsing data',
+  processing: 'Processing data',
+  vectorizing: 'Vectorizing',
+  preparing: 'Preparing training',
+  embedding: 'Generating embeddings',
+  training: 'Training model',
+  validating: 'Validating model',
+  deploying: 'Deploying model',
+  completed: 'Completed',
+  error: 'Import failed',
+  failed: 'Training failed',
 };
 
 const formatTimestamp = (timestamp?: number | null) => {
@@ -76,27 +76,27 @@ const mapJobToProgress = (job: TrainingJob): TrainingProgress => {
       return {
         stage: 'preparing',
         progress: 10,
-        message: '训练任务排队中...'
+        message: 'Training task queued...'
       };
     case 'running':
       return {
         stage: 'training',
         progress: 65,
-        message: '训练进行中，请稍候...'
+        message: 'Training in progress, please wait...'
       };
     case 'succeeded':
       return {
         stage: 'completed',
         progress: 100,
-        message: '训练完成'
+        message: 'Training completed'
       };
     case 'failed':
     default:
       return {
         stage: 'failed',
         progress: 100,
-        message: '训练失败',
-        error: job.error ?? '训练失败，请稍后重试'
+        message: 'Training failed',
+        error: job.error ?? 'Training failed, please retry later'
       };
   }
 };
@@ -141,7 +141,7 @@ export const GoogleDataImportModal = ({
         if (!cancelled) {
           setLatestStats(null);
           const msg = e?.message || String(e);
-          if (msg.includes('无法连接到后端服务')) {
+          if (msg.includes('Cannot connect to backend service')) {
             setError(msg);
           }
         }
@@ -178,7 +178,7 @@ export const GoogleDataImportModal = ({
 
   const handleImport = async () => {
     if (!selectedFile) {
-      setError('请先选择文件');
+      setError('Please select files first');
       return;
     }
 
@@ -202,7 +202,7 @@ export const GoogleDataImportModal = ({
           setImportProgress(progress);
 
           if (progress.stage === 'error') {
-            const message = progress.error ?? '导入失败';
+            const message = progress.error ?? 'Import failed';
             setError(message);
             toast.error(message);
             setImportProgress(null);
@@ -216,7 +216,7 @@ export const GoogleDataImportModal = ({
               return;
             }
             trainingStartedRef.current = true;
-            toast.success('数据导入完成，准备训练 AI');
+            toast.success('Data import completed, preparing to train AI');
             googleDataImportService
               .getImportStats(userId)
               .then(setLatestStats)
@@ -231,8 +231,8 @@ export const GoogleDataImportModal = ({
 
       toast.info('文件上传成功，正在解析数据');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导入失败');
-      toast.error(err instanceof Error ? err.message : '数据导入失败');
+      setError(err instanceof Error ? err.message : 'Import failed');
+      toast.error(err instanceof Error ? err.message : 'Data import failed');
       setStage('select');
       setImportProgress(null);
       trainingStartedRef.current = false;
@@ -250,10 +250,10 @@ export const GoogleDataImportModal = ({
 
       const totalDocs = stats?.totals?.documents ?? 0;
       if (totalDocs === 0) {
-        throw new Error('未找到可用于训练的数据，请先完成导入');
+        throw new Error('No data available for training, please complete import first');
       }
 
-      toast.info(`开始训练 Self AI Agent，共 ${stats.totals.chunks ?? totalDocs} 条记忆`);
+      toast.info(`Starting to train Self AI Agent, total ${stats.totals.chunks ?? totalDocs} memories`);
 
       const job = await trainSelfAgent({
         userId,
@@ -270,7 +270,7 @@ export const GoogleDataImportModal = ({
       setTrainingProgress(initialProgress);
 
       if (initialProgress.stage === 'completed') {
-        toast.success('Self AI Agent 训练完成！');
+        toast.success('Self AI Agent Training completed！');
         setStage('completed');
         onComplete?.();
         trainingStartedRef.current = false;
@@ -285,31 +285,31 @@ export const GoogleDataImportModal = ({
 
           if (progress.stage === 'completed') {
             clearPollTimer();
-            toast.success('Self AI Agent 训练完成！');
+            toast.success('Self AI Agent Training completed！');
             setStage('completed');
             onComplete?.();
             trainingStartedRef.current = false;
           } else if (progress.stage === 'failed') {
-            // 容错：若状态为 failed，尝试读取最新统计，若已有记忆则视为完成
+            // 容错：若状态为 failed，尝试读取最新统计，若已有记忆则视为Completed
             try {
               const s = await googleDataImportService.getImportStats(userId);
               if ((s?.totals?.chunks ?? 0) > 0) {
                 clearPollTimer();
-                toast.success('训练完成（根据统计确认）');
+                toast.success('Training completed (confirmed by statistics)');
                 setStage('completed');
-                setTrainingProgress({ stage: 'completed', progress: 100, message: '训练完成' });
+                setTrainingProgress({ stage: 'completed', progress: 100, message: 'Training completed' });
                 onComplete?.();
                 trainingStartedRef.current = false;
               } else {
                 clearPollTimer();
-                const message = progress.error ?? '训练失败';
+                const message = progress.error ?? 'Training failed';
                 setError(message);
                 toast.error(message);
                 trainingStartedRef.current = false;
               }
             } catch {
               clearPollTimer();
-              const message = progress.error ?? '训练失败';
+              const message = progress.error ?? 'Training failed';
               setError(message);
               toast.error(message);
               trainingStartedRef.current = false;
@@ -321,9 +321,9 @@ export const GoogleDataImportModal = ({
             const s = await googleDataImportService.getImportStats(userId);
             if ((s?.totals?.chunks ?? 0) > 0) {
               clearPollTimer();
-              toast.success('训练完成（根据统计确认）');
+              toast.success('Training completed (confirmed by statistics)');
               setStage('completed');
-              setTrainingProgress({ stage: 'completed', progress: 100, message: '训练完成' });
+              setTrainingProgress({ stage: 'completed', progress: 100, message: 'Training completed' });
               onComplete?.();
               trainingStartedRef.current = false;
               return;
@@ -338,11 +338,11 @@ export const GoogleDataImportModal = ({
         }
       }, 2000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '训练失败';
+      const message = err instanceof Error ? err.message : 'Training failed';
       setTrainingProgress({
         stage: 'failed',
         progress: 100,
-        message: '训练失败',
+        message: 'Training failed',
         error: message,
       });
       setError(message);
@@ -353,7 +353,7 @@ export const GoogleDataImportModal = ({
 
   const handleClose = () => {
     if (stage === 'importing' || stage === 'training') {
-      if (!confirm('导入/训练正在进行中，确定要关闭吗？')) {
+      if (!confirm('Import/training in progress, are you sure you want to close?')) {
         return;
       }
     }
@@ -383,10 +383,10 @@ export const GoogleDataImportModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-indigo-600" />
-            导入 Google 数据并训练 Self AI Agent
+            Import Google Data并Training Self AI Agent
           </DialogTitle>
           <DialogDescription>
-            导入您的 Google Takeout 数据，让 AI 学习您的个人风格和偏好
+            导入您的 Google Takeout 数据，让 AI 学习您的个人风格and偏好
           </DialogDescription>
         </DialogHeader>
 
@@ -408,7 +408,7 @@ export const GoogleDataImportModal = ({
                 </p>
                 <label htmlFor="file-upload">
                   <Button variant="outline" className="cursor-pointer" asChild>
-                    <span>选择文件</span>
+                    <span>Select Files</span>
                   </Button>
                   <input
                     id="file-upload"
@@ -449,7 +449,7 @@ export const GoogleDataImportModal = ({
                 <div className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600">
                   <div>
                     已累计导入 {latestStats.totals.documents.toLocaleString()} 个文档 /
-                    {latestStats.totals.chunks.toLocaleString()} 条记忆
+                    {latestStats.totals.chunks.toLocaleString()} memories
                   </div>
                   {lastImportTime && (
                     <div className="mt-1 text-xs text-gray-500">
@@ -468,14 +468,14 @@ export const GoogleDataImportModal = ({
 
               <div className="flex gap-3 pt-4">
                 <Button variant="outline" onClick={handleClose} className="flex-1">
-                  取消
+                  Cancel
                 </Button>
                 <Button
                   onClick={handleImport}
                   disabled={!selectedFile}
                   className="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
                 >
-                  开始导入并训练
+                  Start Import and Training
                 </Button>
               </div>
             </motion.div>
@@ -508,7 +508,7 @@ export const GoogleDataImportModal = ({
                 </p>
                 {importProgress.stats && (
                   <p className="text-xs text-gray-400">
-                    已生成 {importProgress.stats.chunks ?? 0} 条记忆 / {importProgress.stats.docs ?? 0} 个文档
+                    已生成 {importProgress.stats.chunks ?? 0} memories / {importProgress.stats.docs ?? 0} 个文档
                   </p>
                 )}
               </div>
@@ -615,7 +615,7 @@ export const GoogleDataImportModal = ({
               </div>
 
               <div>
-                <h3 className="text-2xl font-bold mb-2">训练完成！</h3>
+                <h3 className="text-2xl font-bold mb-2">Training completed！</h3>
                 <p className="text-gray-500 mb-6">
                   您的 Self AI Agent 已经准备好，可以开始对话了
                 </p>
@@ -623,7 +623,7 @@ export const GoogleDataImportModal = ({
                   <div className="mb-6 rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
                     <div>
                       本次导入 {latestStats.lastImportSummary.documents.toLocaleString()} 个文档 /
-                      {latestStats.lastImportSummary.chunks.toLocaleString()} 条记忆
+                      {latestStats.lastImportSummary.chunks.toLocaleString()} memories
                     </div>
                     {latestStats.lastImportSummary.files > 0 && (
                       <div className="text-xs text-indigo-500 mt-1">

@@ -67,8 +67,70 @@ export function getDB(cfg: DBConfig = {}): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_chunks_user ON chunks(user_id);
     CREATE INDEX IF NOT EXISTS idx_chunks_doc ON chunks(doc_id);
     CREATE INDEX IF NOT EXISTS idx_vectors_user ON vectors(user_id);
+
+    -- User-specific AI models
+    CREATE TABLE IF NOT EXISTS user_models (
+      user_id TEXT PRIMARY KEY,
+      model_id TEXT NOT NULL,
+      version TEXT NOT NULL,
+      metadata TEXT,
+      created_at INTEGER,
+      updated_at INTEGER,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_models_user ON user_models(user_id);
+
+    -- Personality training tables
+    CREATE TABLE IF NOT EXISTS personality_training_samples (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_context TEXT,
+      user_response TEXT,
+      target_person TEXT,
+      timestamp_context INTEGER,
+      emotional_context TEXT,
+      source_doc_id TEXT,
+      quality_score REAL,
+      used_for_training INTEGER DEFAULT 0,
+      created_at INTEGER,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(source_doc_id) REFERENCES documents(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS personality_models (
+      user_id TEXT PRIMARY KEY,
+      model_version INTEGER NOT NULL,
+      model_type TEXT DEFAULT 'lora',
+      model_path TEXT,
+      training_samples_count INTEGER,
+      training_duration_seconds REAL,
+      training_loss REAL,
+      is_active INTEGER DEFAULT 1,
+      hyperparameters TEXT,
+      created_at INTEGER,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS training_jobs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      status TEXT DEFAULT 'queued',
+      started_at INTEGER,
+      finished_at INTEGER,
+      error_message TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_training_samples_user 
+      ON personality_training_samples(user_id);
+    CREATE INDEX IF NOT EXISTS idx_training_samples_unused 
+      ON personality_training_samples(user_id, used_for_training);
+    CREATE INDEX IF NOT EXISTS idx_training_jobs_user 
+      ON training_jobs(user_id);
   `);
 
+  console.log("✅ Database schema initialized with personality tables");
   return db;
 }
 
@@ -313,4 +375,72 @@ export function migrateUserData(fromUserId: string, toUserId: string) {
     return updates;
   });
   return tx();
+}
+
+// ============ User Model Functions ============
+
+export type UserModelRecord = {
+  user_id: string;
+  model_id: string;
+  version: string;
+  metadata: string;
+  created_at: number;
+  updated_at: number;
+};
+
+export function getUserDocCount(userId: string): number {
+  const db = getDB();
+  const row = db.prepare("SELECT COUNT(*) AS count FROM documents WHERE user_id = ?").get(userId) as { count: number } | undefined;
+  return row?.count ?? 0;
+}
+
+export function getUserModel(userId: string): UserModelRecord | undefined {
+  const db = getDB();
+  return db.prepare("SELECT * FROM user_models WHERE user_id = ?").get(userId) as UserModelRecord | undefined;
+}
+
+export function insertUserModel(model: UserModelRecord) {
+  const db = getDB();
+  db.prepare(
+    `INSERT INTO user_models(user_id, model_id, version, metadata, created_at, updated_at)
+     VALUES(@user_id, @model_id, @version, @metadata, @created_at, @updated_at)`
+  ).run(model);
+}
+
+export function updateUserModel(userId: string, updates: Partial<Omit<UserModelRecord, 'user_id'>>) {
+  const db = getDB();
+  const setClauses: string[] = [];
+  const params: any = { user_id: userId };
+
+  if (updates.model_id !== undefined) {
+    setClauses.push('model_id = @model_id');
+    params.model_id = updates.model_id;
+  }
+  if (updates.version !== undefined) {
+    setClauses.push('version = @version');
+    params.version = updates.version;
+  }
+  if (updates.metadata !== undefined) {
+    setClauses.push('metadata = @metadata');
+    params.metadata = updates.metadata;
+  }
+  if (updates.updated_at !== undefined) {
+    setClauses.push('updated_at = @updated_at');
+    params.updated_at = updates.updated_at;
+  }
+
+  if (setClauses.length === 0) return;
+
+  const sql = `UPDATE user_models SET ${setClauses.join(', ')} WHERE user_id = @user_id`;
+  db.prepare(sql).run(params);
+}
+
+export function deleteUserModel(userId: string): number {
+  const db = getDB();
+  const result = db.prepare("DELETE FROM user_models WHERE user_id = ?").run(userId);
+  return result.changes;
+}
+
+export function getDb() {
+  return getDB();
 }

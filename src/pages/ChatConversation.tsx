@@ -122,7 +122,7 @@ export default function ChatConversation() {
     }));
     history.push({ role: "user", content: text });
 
-    // 创建 AI 消息占位符（用于流式输出）
+    // 创建 AI 消息占位符（用于Streaming Output）
     const aiMessageId = (Date.now() + 1).toString();
     const aiMessage: Message = {
       id: aiMessageId,

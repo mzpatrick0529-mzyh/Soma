@@ -158,7 +158,7 @@ export function MediaUploader({
 
         <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
         <h3 className="text-lg font-semibold mb-2">拖拽文件到此处</h3>
-        <p className="text-sm text-gray-500 mb-4">或点击按钮选择文件</p>
+        <p className="text-sm text-gray-500 mb-4">或点击按钮Select Files</p>
         
         <div className="flex gap-2 justify-center flex-wrap">
           <motion.div variants={buttonPress} whileTap="tap" whileHover="hover">

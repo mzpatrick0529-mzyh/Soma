@@ -10,7 +10,7 @@ import path from 'path';
 import { db } from '../db/index.js';
 
 // ============================================
-// 类型定义
+// Type definitions
 // ============================================
 
 export interface L0Memory {
@@ -220,7 +220,7 @@ export class MemoryV2Service {
   }
 
   // ----------------------------------------
-  // L1: 主题聚类管理
+  // L1: Theme聚类管理
   // ----------------------------------------
 
   /**
@@ -265,7 +265,7 @@ export class MemoryV2Service {
   }
 
   /**
-   * 获取用户的主题聚类
+   * 获取用户的Theme聚类
    */
   async getClusters(userId: string, limit: number = 10): Promise<L1Cluster[]> {
     const stmt = db.prepare(`
@@ -572,7 +572,7 @@ export class MemoryV2Service {
   }
 
   // ----------------------------------------
-  // 统计和监控
+  // 统计and监控
   // ----------------------------------------
 
   /**

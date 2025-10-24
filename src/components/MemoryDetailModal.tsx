@@ -62,7 +62,7 @@ export function MemoryDetailModal({ chunkId, docId, userId, onClose }: MemoryDet
         setDocData(response);
       }
     } catch (error: any) {
-      toast.error("加载失败", { description: error.message });
+      toast.error("Failed to load", { description: error.message });
     } finally {
       setLoading(false);
     }
@@ -93,7 +93,7 @@ export function MemoryDetailModal({ chunkId, docId, userId, onClose }: MemoryDet
       setChunkData(response);
       setCurrentChunkIdx(response.idx);
     } catch (error: any) {
-      toast.error("加载失败", { description: error.message });
+      toast.error("Failed to load", { description: error.message });
     } finally {
       setLoading(false);
     }

@@ -22,7 +22,7 @@ interface SyncResult {
 }
 
 /**
- * 同步所有 Google 服务
+ * Sync all Google services
  */
 export async function syncAllGoogleServices(userId: string): Promise<SyncResult[]> {
   console.log(`[google-sync] Starting full sync for user ${userId}`);
@@ -174,7 +174,7 @@ export async function syncGmail(userId: string): Promise<SyncResult> {
           }
         });
         
-        // 分块和向量化
+        // 分块and向量化
         const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
         chunks.forEach((text, idx) => {
           const chunkId = uid("chk");
@@ -297,7 +297,7 @@ export async function syncGoogleDrive(userId: string): Promise<SyncResult> {
           }
         });
         
-        // 分块和向量化
+        // 分块and向量化
         const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
         chunks.forEach((text, idx) => {
           const chunkId = uid("chk");
@@ -404,7 +404,7 @@ export async function syncGoogleCalendar(userId: string): Promise<SyncResult> {
           }
         });
         
-        // 分块和向量化
+        // 分块and向量化
         const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
         chunks.forEach((text, idx) => {
           const chunkId = uid("chk");

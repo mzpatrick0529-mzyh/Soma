@@ -1,6 +1,6 @@
 /**
  * ⚙️ Settings - Soma Style
- * iOS 风格设置页面，分组清晰，交互流畅
+ * iOS-style settings page, well-organized groups, smooth interaction
  */
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -116,12 +116,12 @@ const Settings = () => {
   const settingsSections: SettingsSection[] = [
     {
       id: "account",
-      title: "账号",
+      title: "Account",
       items: [
         {
           id: "profile",
           icon: User,
-          label: "个人资料",
+          label: "Profile",
           value: user.name,
           type: "link",
           iconColor: "text-indigo-600",
@@ -130,8 +130,8 @@ const Settings = () => {
         {
           id: "google-import",
           icon: Download,
-          label: "导入 Google 数据",
-          description: "从 Google Takeout 导入你的数据",
+          label: "Import Google Data",
+          description: "Import your data from Google Takeout",
           type: "link",
           iconColor: "text-blue-600",
           onClick: () => setShowGoogleImport(true),
@@ -139,17 +139,17 @@ const Settings = () => {
         {
           id: "premium",
           icon: Crown,
-          label: "升级到 Premium",
-          badge: "特惠",
+          label: "Upgrade to Premium",
+          badge: "Special Offer",
           type: "link",
           iconColor: "text-yellow-600",
-          onClick: () => toast.info("Premium 功能即将推出"),
+          onClick: () => toast.info("Premium features coming soon"),
         },
         {
           id: "provider",
           icon: SettingsIcon,
-          label: "AI Provider 诊断",
-          description: "查看 AI 提供商状态和配置",
+          label: "AI Provider Diagnostics",
+          description: "View AI provider status and configuration",
           type: "link",
           iconColor: "text-purple-600",
           onClick: () => navigate("/settings/provider"),
@@ -158,12 +158,12 @@ const Settings = () => {
     },
     {
       id: "notifications",
-      title: "通知",
+      title: "Notifications",
       items: [
         {
           id: "push",
           icon: Bell,
-          label: "推送通知",
+          label: "Push Notifications",
           type: "toggle",
           iconColor: "text-red-600",
           isToggled: notifications.push,
@@ -173,7 +173,7 @@ const Settings = () => {
         {
           id: "email",
           icon: Mail,
-          label: "邮件通知",
+          label: "Email Notifications",
           type: "toggle",
           iconColor: "text-blue-600",
           isToggled: notifications.email,
@@ -183,7 +183,7 @@ const Settings = () => {
         {
           id: "mentions",
           icon: MessageSquare,
-          label: "@提到我",
+          label: "@ Mentions",
           type: "toggle",
           iconColor: "text-green-600",
           isToggled: notifications.mentions,
@@ -193,7 +193,7 @@ const Settings = () => {
         {
           id: "likes",
           icon: Heart,
-          label: "点赞",
+          label: "Likes",
           type: "toggle",
           iconColor: "text-pink-600",
           isToggled: notifications.likes,
@@ -204,43 +204,43 @@ const Settings = () => {
     },
     {
       id: "privacy",
-      title: "隐私与安全",
+      title: "Privacy & Security",
       items: [
         {
           id: "privacy",
           icon: Shield,
-          label: "隐私设置",
+          label: "Privacy Settings",
           type: "link",
           iconColor: "text-green-600",
-          onClick: () => toast.info("隐私设置功能开发中"),
+          onClick: () => toast.info("Privacy settings feature under development"),
         },
         {
           id: "security",
           icon: Lock,
-          label: "安全",
+          label: "Security",
           type: "link",
           iconColor: "text-orange-600",
-          onClick: () => toast.info("安全设置功能开发中"),
+          onClick: () => toast.info("Security settings feature under development"),
         },
         {
           id: "data",
           icon: Download,
-          label: "下载我的数据",
+          label: "Download My Data",
           type: "action",
           iconColor: "text-blue-600",
-          onClick: () => toast.success("数据导出请求已提交"),
+          onClick: () => toast.success("Data export request submitted"),
         },
       ],
     },
     {
       id: "appearance",
-      title: "外观",
+      title: "Appearance",
       items: [
         {
           id: "theme",
           icon: theme === "dark" ? Moon : theme === "light" ? Sun : Monitor,
-          label: "主题",
-          value: theme === "dark" ? "深色" : theme === "light" ? "浅色" : "跟随系统",
+          label: "Theme",
+          value: theme === "dark" ? "Dark" : theme === "light" ? "Light" : "Follow System",
           type: "link",
           iconColor: "text-violet-600",
           onClick: () => {
@@ -248,82 +248,82 @@ const Settings = () => {
               theme === "light" ? "dark" : theme === "dark" ? "auto" : "light";
             setTheme(nextTheme);
             toast.success(
-              `已切换到${
+              `Switched to${
                 nextTheme === "light"
-                  ? "浅色"
+                  ? "Light"
                   : nextTheme === "dark"
-                  ? "深色"
-                  : "自动"
-              }模式`
+                  ? "Dark"
+                  : "Auto"
+              }mode`
             );
           },
         },
         {
           id: "language",
           icon: Globe,
-          label: "语言",
-          value: "简体中文",
+          label: "Language",
+          value: "Simplified Chinese",
           type: "link",
           iconColor: "text-cyan-600",
-          onClick: () => toast.info("语言设置功能开发中"),
+          onClick: () => toast.info("Language settings feature under development"),
         },
       ],
     },
     {
       id: "about",
-      title: "关于",
+      title: "About",
       items: [
         {
           id: "help",
           icon: HelpCircle,
-          label: "帮助中心",
+          label: "Help Center",
           type: "link",
           iconColor: "text-blue-600",
-          onClick: () => toast.info("帮助中心功能开发中"),
+          onClick: () => toast.info("Help center feature under development"),
         },
         {
           id: "terms",
           icon: FileText,
-          label: "服务条款",
+          label: "Terms of Service",
           type: "link",
           iconColor: "text-gray-600",
-          onClick: () => toast.info("服务条款功能开发中"),
+          onClick: () => navigate("/legal/terms-of-service"),
         },
         {
           id: "privacy-policy",
           icon: Eye,
-          label: "隐私政策",
+          label: "Privacy Policy",
           type: "link",
           iconColor: "text-gray-600",
-          onClick: () => toast.info("隐私政策功能开发中"),
+          onClick: () => navigate("/legal/privacy-policy"),
         },
         {
           id: "about",
           icon: Info,
-          label: "关于 Soma",
+          label: "About Soma",
           value: "v1.0.0",
           type: "link",
           iconColor: "text-indigo-600",
-          onClick: () => toast.info("Soma - 你的智能伙伴"),
+          onClick: () => toast.info("Soma - Your Smart Companion"),
         },
       ],
     },
     {
       id: "danger",
-      title: "危险区域",
+      title: "Danger Zone",
       items: [
         {
           id: "logout",
           icon: LogOut,
-          label: "退出登录",
+          label: "Logout",
           type: "action",
           iconColor: "text-orange-600",
-          onClick: () => toast.success("已退出登录"),
+          onClick: () => toast.success("Logged out"),
         },
         {
           id: "delete",
           icon: Trash2,
-          label: "删除账号",
+          label: "Delete Account",
           type: "action",
           isDanger: true,
           iconColor: "text-red-600",
@@ -375,7 +375,7 @@ const Settings = () => {
             />
             <Input
               type="text"
-              placeholder="搜索设置..."
+              placeholder="Search settings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-100/80 border-0 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all duration-200"
@@ -417,7 +417,7 @@ const Settings = () => {
               onClick={handleOpenEditProfile}
               className="self-start"
             >
-              编辑
+              Edit
             </Button>
           </div>
         </motion.div>
@@ -455,7 +455,7 @@ const Settings = () => {
       <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>编辑个人资料</DialogTitle>
+            <DialogTitle>Edit Profile</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex justify-center mb-4">
@@ -476,7 +476,7 @@ const Settings = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">姓名</Label>
+              <Label htmlFor="name">Name</Label>
               <Input 
                 id="name" 
                 value={editName} 
@@ -484,16 +484,16 @@ const Settings = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="username">用户名</Label>
+              <Label htmlFor="username">Username</Label>
               <Input 
                 id="username" 
                 value={editUsername}
                 onChange={(e) => setEditUsername(e.target.value)}
-                placeholder="不带@符号"
+                placeholder="Without @ symbol"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
+              <Label htmlFor="email">Email</Label>
               <Input 
                 id="email" 
                 type="email" 
@@ -501,7 +501,7 @@ const Settings = () => {
                 disabled
                 className="bg-gray-50 cursor-not-allowed"
               />
-              <p className="text-xs text-gray-500">邮箱地址不可修改</p>
+              <p className="text-xs text-gray-500">Email address cannot be modified</p>
             </div>
           </div>
           <DialogFooter>
@@ -510,7 +510,7 @@ const Settings = () => {
               onClick={() => setShowEditProfile(false)}
               disabled={isSaving}
             >
-              取消
+              Cancel
             </Button>
             <Button
               onClick={async () => {
@@ -525,10 +525,10 @@ const Settings = () => {
                     name: editName,
                   });
                   
-                  toast.success("个人资料已更新");
+                  toast.success("Profile updated");
                   setShowEditProfile(false);
                 } catch (error) {
-                  toast.error("更新失败,请稍后重试");
+                  toast.error("Update failed, please try again later");
                   console.error("Profile update error:", error);
                 } finally {
                   setIsSaving(false);
@@ -537,7 +537,7 @@ const Settings = () => {
               disabled={isSaving}
               className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
             >
-              {isSaving ? "保存中..." : "保存"}
+              {isSaving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -547,32 +547,32 @@ const Settings = () => {
       <Dialog open={showDeleteAccount} onOpenChange={setShowDeleteAccount}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="text-red-600">删除账号</DialogTitle>
+            <DialogTitle className="text-red-600">Delete Account</DialogTitle>
             <DialogDescription className="text-gray-600">
-              此操作无法撤销。你的所有数据将被永久删除。
+              This action cannot be undone. All your data will be permanently deleted.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-gray-600 mb-4">
-              如果你确定要删除账号，请输入 <strong>DELETE</strong> 以确认：
+              If you are sure you want to delete your account, please enter <strong>DELETE</strong> to confirm:
             </p>
-            <Input placeholder="输入 DELETE" />
+            <Input placeholder="Enter DELETE" />
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setShowDeleteAccount(false)}
             >
-              取消
+              Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
-                toast.error("账号删除请求已提交");
+                toast.error("Account deletion request submitted");
                 setShowDeleteAccount(false);
               }}
             >
-              删除账号
+              Delete Account
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -584,7 +584,7 @@ const Settings = () => {
         onClose={() => setShowGoogleImport(false)}
         userId={user.id}
         onComplete={() => {
-          toast.success("Google 数据导入完成！Self AI Agent 已训练完成");
+          toast.success("Google data import completed! Self AI Agent training complete");
           setShowGoogleImport(false);
         }}
       />

@@ -56,18 +56,21 @@ class PersonalityModelTrainer:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # 从 personality_training_samples 表获取训练样本
+        # 从 personality_training_samples 表获取训练样本，并关联来源文档以获取 source
         cursor.execute("""
             SELECT 
-                conversation_context,
-                user_response,
-                target_person,
-                timestamp_context
-            FROM personality_training_samples
-            WHERE user_id = ?
-            AND used_for_training = 0
-            ORDER BY timestamp_context DESC
-            LIMIT 1000
+                pts.conversation_context,
+                pts.user_response,
+                pts.target_person,
+                pts.timestamp_context,
+                COALESCE(d.source, 'unknown') as source,
+                COALESCE(pts.quality_score, 0.0) as quality
+            FROM personality_training_samples pts
+            LEFT JOIN documents d ON d.id = pts.source_doc_id
+            WHERE pts.user_id = ?
+              AND pts.used_for_training = 0
+            ORDER BY pts.timestamp_context DESC
+            LIMIT 2000
         """, (self.user_id,))
         
         samples = cursor.fetchall()
@@ -79,37 +82,66 @@ class PersonalityModelTrainer:
                 f"Need more conversation data."
             )
         
-        print(f"✓ Loaded {len(samples)} training samples")
+        print(f"✓ Loaded {len(samples)} training samples (unused)")
         
         # 转换为训练格式
         training_examples = []
+        source_counter = {}
+        weights = {'wechat': 3, 'instagram': 2}  # 提升微信/Instagram 权重，其余默认为 1
+
         for sample in samples:
             context_json = sample[0]
             user_response = sample[1]
             target_person = sample[2]
-            
+            source = (sample[4] or 'unknown').lower()
+            quality = float(sample[5]) if sample[5] is not None else 0.0
+
             try:
                 context = json.loads(context_json) if context_json else []
             except:
                 context = []
-            
+
             # 构建训练输入-输出对
             conversation_history = self._format_conversation(context)
-            
-            training_examples.append({
+
+            # 过长输出做轻裁剪（防止极端长样本影响收敛）
+            if isinstance(user_response, str) and len(user_response) > 1200:
+                user_response = user_response[:1200]
+
+            example = {
                 'input': conversation_history,
                 'output': user_response,
                 'metadata': {
                     'target_person': target_person,
-                    'length': len(user_response.split())
+                    'length': len(user_response.split()),
+                    'source': source,
+                    'quality': quality,
                 }
-            })
+            }
+
+            # 依据来源过采样（简单稳定，兼容 HF Trainer）
+            w = weights.get(source, 1)
+            for _ in range(max(1, int(w))):
+                training_examples.append(example)
+            source_counter[source] = source_counter.get(source, 0) + w
+
+        # 简要统计
+        if source_counter:
+            print("Source weights (effective counts):")
+            for s, c in sorted(source_counter.items(), key=lambda x: -x[1]):
+                print(f"  - {s}: {int(c)}")
         
         # 转换为 HuggingFace Dataset
         dataset = Dataset.from_dict({
             'input': [ex['input'] for ex in training_examples],
             'output': [ex['output'] for ex in training_examples]
         })
+
+        # 记录用于保存模型信息
+        try:
+            self.training_data = training_examples
+        except Exception:
+            pass
         
         return dataset
     
@@ -274,47 +306,50 @@ class PersonalityModelTrainer:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        # ✅ 修复：使用正确的表名 personality_models
         # 获取下一个版本号
         cursor.execute("""
-            SELECT COALESCE(MAX(version_number), 0) + 1
-            FROM personality_model_versions
+            SELECT COALESCE(MAX(model_version), 0) + 1
+            FROM personality_models
             WHERE user_id = ?
         """, (self.user_id,))
         
-        version_number = cursor.fetchone()[0]
+        model_version = cursor.fetchone()[0]
         
-        # 插入新版本
+        # 插入新版本（使用正确的列名）
         cursor.execute("""
-            INSERT INTO personality_model_versions (
-                user_id, version_number, model_type, model_path,
-                training_samples_count, training_loss,
+            INSERT INTO personality_models (
+                user_id, model_version, model_type, model_path,
+                training_samples_count, training_loss, training_duration_seconds,
                 hyperparameters, is_active, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         """, (
             self.user_id,
-            version_number,
+            model_version,
             'lora',
             self.output_dir,
-            len(self.training_data),
-            train_result.training_loss,
+            len(self.training_data) if hasattr(self, 'training_data') else 0,
+            float(train_result.training_loss) if hasattr(train_result, 'training_loss') else 0.0,
+            0.0,  # training_duration_seconds (可以从 train_result 计算)
             json.dumps({
                 'base_model': self.base_model,
-                'epochs': train_result.global_step,
+                'epochs': train_result.global_step if hasattr(train_result, 'global_step') else 3,
                 'learning_rate': 2e-4
-            })
+            }),
+            int(datetime.now().timestamp() * 1000)  # created_at 毫秒时间戳
         ))
         
         # 将其他版本设为非激活
         cursor.execute("""
-            UPDATE personality_model_versions
+            UPDATE personality_models
             SET is_active = 0
-            WHERE user_id = ? AND version_number != ?
-        """, (self.user_id, version_number))
+            WHERE user_id = ? AND model_version != ?
+        """, (self.user_id, model_version))
         
         conn.commit()
         conn.close()
         
-        print(f"✓ Model version {version_number} saved to database")
+        print(f"✓ Model version {model_version} saved to database")
     
     def evaluate(self, test_samples: List[Dict]) -> Dict[str, float]:
         """

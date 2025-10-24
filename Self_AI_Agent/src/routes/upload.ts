@@ -1,6 +1,6 @@
 /**
  * 🔄 File Upload & Progress Routes
- * 处理多数据源文件上传和进度追踪 (Google/WeChat/Instagram)
+ * 处理多数据源文件上传and进度追踪 (Google/WeChat/Instagram)
  */
 import express, { Request, Response, NextFunction } from "express";
 import multer from "multer";
@@ -15,6 +15,7 @@ import { createGunzip } from "zlib";
 import { createReadStream } from "fs";
 import { pipeline } from "stream/promises";
 import yauzl from "yauzl";
+import { generateTrainingSamples, getTrainingSampleStats } from "../services/trainingSampleGenerator";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,7 +39,7 @@ const storage = multer.diskStorage({
 
 // 允许通过环境变量配置最大上传大小（GB），默认 10GB
 const MAX_UPLOAD_SIZE_GB = Number(process.env.MAX_UPLOAD_SIZE_GB || process.env.UPLOAD_MAX_GB || 16);
-const MAX_UPLOAD_SIZE_BYTES = Math.max(1, Math.min(100, MAX_UPLOAD_SIZE_GB)) * 1024 * 1024 * 1024; // 1GB ~ 100GB 安全范围
+const MAX_UPLOAD_SIZE_BYTES = Math.max(1, Math.min(100, MAX_UPLOAD_SIZE_GB)) * 1024 * 1024 * 1024; // 1GB ~ 100GB Security范围
 
 const upload = multer({
   storage,
@@ -74,7 +75,7 @@ export const importProgress = new Map<
   string,
   {
     userId: string;
-    stage: "uploading" | "parsing" | "processing" | "vectorizing" | "training" | "completed" | "error";
+    stage: "uploading" | "parsing" | "processing" | "vectorizing" | "generating_samples" | "training" | "completed" | "error";
     totalFiles: number;
     processedFiles: number;
     currentFile: string;
@@ -327,7 +328,7 @@ async function processUploadedFile(
       await extractTarGz(filePath, extractDir);
     }
 
-    // 2. 自动检测数据源
+    // 2. Auto检测数据源
     progress.currentFile = "Detecting data source...";
     const dataSource = detectDataSource(extractDir);
     progress.dataSource = dataSource;
@@ -348,7 +349,38 @@ async function processUploadedFile(
     // 模拟向量化过程
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // 4. 完成
+    // 5. 生成训练样本（根据后端存储切换）
+    progress.stage = "generating_samples";
+    progress.percentage = 85;
+    progress.currentFile = "Generating training samples...";
+    
+    try {
+      const backend = (process.env.STORAGE_BACKEND || '').toLowerCase();
+      let samplesCreated = 0;
+      let trainingStats: any = {};
+      if (backend === 'pg') {
+        const { generateTrainingSamplesPg, getTrainingSampleStatsPg } = await import('../services/trainingSampleGeneratorPg');
+        samplesCreated = await generateTrainingSamplesPg(userId, dataSource as any);
+        trainingStats = await getTrainingSampleStatsPg(userId);
+      } else {
+        // 旧路径（SQLite）
+        samplesCreated = await generateTrainingSamples(userId, dataSource as any);
+        trainingStats = getTrainingSampleStats(userId);
+      }
+      
+      console.log(`[upload] Generated ${samplesCreated} training samples for ${userId}`);
+      console.log(`[upload] Training stats: ${JSON.stringify(trainingStats)}`);
+      
+      // 如果有足够的样本，可以提示用户开始训练
+      if ((trainingStats.unused || 0) >= 50) {
+        console.log(`[upload] ✅ User ${userId} has ${trainingStats.unused} samples ready for training`);
+      }
+    } catch (sampleError: any) {
+      console.error(`[upload] Failed to generate training samples:`, sampleError);
+      // 不中断主流程，样本生成失败不影响数据导入
+    }
+
+    // 6. Completed
     progress.stage = "completed";
     progress.percentage = 100;
     progress.currentFile = "Import completed";

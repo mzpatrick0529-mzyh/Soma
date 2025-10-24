@@ -1,6 +1,6 @@
 import { apiClient, handleApiError, API_ENDPOINTS } from '../lib/api';
 
-// 用户认证相关类型
+// User authentication related types
 export interface LoginData {
   email: string;
   password: string;
@@ -26,7 +26,7 @@ export interface AuthResponse {
   token: string;
 }
 
-// 内容相关类型
+// Content related types
 export interface Memory {
   id: string;
   user: {
@@ -64,7 +64,7 @@ export interface Comment {
   parentId?: string;
 }
 
-// 认证服务
+// Authentication service
 export const authService = {
   async login(data: LoginData): Promise<AuthResponse> {
     try {
@@ -107,7 +107,7 @@ export const authService = {
   },
 };
 
-// 内容服务
+// Content service
 export const contentService = {
   async getMemories(page = 1, limit = 20): Promise<Memory[]> {
     try {
@@ -193,7 +193,7 @@ export const contentService = {
   },
 };
 
-// 用户服务
+// User service
 export const userService = {
   async updateProfile(data: Partial<User>): Promise<User> {
     try {
@@ -229,7 +229,7 @@ export const userService = {
   },
 };
 
-// 文件上传服务
+// File upload service
 export const uploadService = {
   async uploadImage(file: File): Promise<{ url: string; filename: string }> {
     try {
@@ -254,7 +254,7 @@ export const uploadService = {
   },
 };
 
-// 社交服务
+// Social service
 export const socialService = {
   async getNotifications(): Promise<any[]> {
     try {

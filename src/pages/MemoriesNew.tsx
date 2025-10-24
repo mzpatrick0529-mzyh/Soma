@@ -44,7 +44,7 @@ const Memories = () => {
   const loadTimeline = async (reset = false) => {
     if (loading || (!hasMore && !reset)) return;
     if (!user?.email && !user?.id) {
-      toast.error("请先登录");
+      toast.error("Please login first");
       return;
     }
 
@@ -62,7 +62,7 @@ const Memories = () => {
       setCursor(result.nextCursor);
       setHasMore(Boolean(result.nextCursor));
     } catch (error: any) {
-      toast.error(`加载失败: ${error.message}`);
+      toast.error(`Failed to load: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ const Memories = () => {
               我的记忆
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {totalItems > 0 ? `共 ${totalItems} 条记忆` : "还没有记忆，从导入数据开始"}
+              {totalItems > 0 ? `共 ${totalItems} memories` : "还没有记忆，从导入数据开始"}
             </p>
           </div>
           <div className="flex gap-2">
@@ -146,7 +146,7 @@ const Memories = () => {
         {loading && sections.length === 0 ? (
           <div className="text-center py-20">
             <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500 mt-4">加载中...</p>
+            <p className="text-sm text-gray-500 mt-4">Loading...</p>
           </div>
         ) : filteredSections.length === 0 ? (
           <Card className="p-12 text-center bg-white/60 backdrop-blur-sm">
@@ -237,7 +237,7 @@ const Memories = () => {
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      加载中...
+                      Loading...
                     </>
                   ) : (
                     <>加载更多</>
@@ -255,7 +255,7 @@ const Memories = () => {
         onClose={() => setShowImportModal(false)}
         userId={user?.email || user?.id || ""}
         onImportComplete={() => {
-          toast.success("导入完成！");
+          toast.success("导入Completed！");
           loadTimeline(true);
         }}
       />
@@ -482,7 +482,7 @@ export default Memories;
               <Sparkles size={48} className="mx-auto" />
             </div>
             <p className="text-gray-500 text-lg">还没有记忆</p>
-            <p className="text-gray-400 text-sm mt-2">点击右上角 + 创建第一条记忆</p>
+            <p className="text-gray-400 text-sm mt-2">点击右上角 + 创建第一memories</p>
           </motion.div>
         )}
       </main>
@@ -597,7 +597,7 @@ const MemoryCard = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>编辑</DropdownMenuItem>
+              <DropdownMenuItem>Edit</DropdownMenuItem>
               <DropdownMenuItem>分享</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600">删除</DropdownMenuItem>

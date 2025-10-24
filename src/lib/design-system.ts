@@ -50,7 +50,7 @@ export const designTokens = {
       950: '#0A0A0A',
     },
     
-    // 深色模式 - 高对比度设计
+    // Darkmode - 高对比度设计
     dark: {
       bg: '#0A0A0A',           // 深黑背景
       surface: '#1C1C1E',      // 卡片表面
@@ -62,7 +62,7 @@ export const designTokens = {
       borderSubtle: '#18181B', // 细边框
     },
     
-    // 浅色模式
+    // Lightmode
     light: {
       bg: '#FFFFFF',
       surface: '#F9FAFB',
@@ -208,5 +208,5 @@ export const getGradientStyle = (gradientKey: keyof typeof designTokens.colors.g
   return { background: designTokens.colors.gradients[gradientKey] };
 };
 
-// 导出类型定义
+// 导出Type definitions
 export type DesignTokens = typeof designTokens;

@@ -5,7 +5,7 @@
 import fg from "fast-glob";
 import fs from "fs";
 import path from "path";
-import { ensureUser, insertDocument, insertChunk, insertVector } from "../db";
+import { ensureUser, insertDocument, insertChunk, insertVector, getDB } from "../db";
 import { stripHtml, normalizeText } from "../utils/text";
 import { chunkText } from "../pipeline/chunk";
 import { embedText } from "../pipeline/embeddings";
@@ -38,11 +38,15 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
       const type = ext.replace(".", "");
 
       const raw = fs.readFileSync(file, "utf8");
+      let parsedJson: any = null;
+      let formattedText = "";
       
       if (ext === ".json") {
         try {
-          const obj = JSON.parse(raw);
-          content = extractInstagramJson(obj);
+          parsedJson = JSON.parse(raw);
+          formattedText = extractInstagramJson(parsedJson);
+          // ✅ Save原始 JSON 结构到 content，格式化文本到 metadata
+          content = raw; // Save原始 JSON 字符串
         } catch {
           // keep raw on parse failure
           content = raw;
@@ -53,10 +57,22 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
         content = raw;
       }
 
-      content = normalizeText(content);
+      // 只对非 JSON 文件进行 normalize
+      if (ext !== ".json") {
+        content = normalizeText(content);
+      }
       if (!content) continue;
 
       const docId = uid("doc");
+      // 导入前去重：SQLite 路径直接按内容全等（JSON 使用原始字符串，其他类型使用 normalize 后的文本）
+      try {
+        const db = getDB();
+        const dup = db.prepare(`SELECT id FROM documents WHERE user_id = ? AND content = ? LIMIT 1`).get(userId, content) as any;
+        if (dup?.id) {
+          // skip duplicate
+          continue;
+        }
+      } catch {}
       // 为 title 添加明确的来源标识，便于 AI 识别
       const displayTitle = source === "instagram-messages" 
         ? `Instagram Message: ${title}`
@@ -68,12 +84,23 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
         source: "instagram", // 统一使用 instagram 作为主分类
         type, 
         title: displayTitle, 
-        content, 
-        metadata: { path: file, platform: "Instagram", subSource: source, dataSource: "Instagram Export" } 
+        content, // ✅ JSON 文件Save原始 JSON，其他文件Save文本
+        metadata: { 
+          path: file, 
+          platform: "Instagram", 
+          subSource: source, 
+          dataSource: "Instagram Export",
+          isJson: ext === ".json", // 标记是否为 JSON 格式
+          formattedText: formattedText || undefined, // Save格式化的人类可读文本
+          hasMessages: parsedJson?.messages ? true : false, // 标记是否包含消息数据
+          participantCount: parsedJson?.participants?.length || undefined
+        } 
       });
       stats.docs += 1;
 
-      const chunks = chunkText(content, { maxChars: 1200, overlap: 120 });
+      // ✅ 对于 JSON 文件，使用格式化文本进行 chunking；其他文件使用原始 content
+      const textForChunking = (ext === ".json" && formattedText) ? formattedText : content;
+      const chunks = chunkText(textForChunking, { maxChars: 1200, overlap: 120 });
       chunks.forEach((text, idx) => {
         const chunkId = uid("chk");
         insertChunk({ 
@@ -90,6 +117,7 @@ export async function importInstagramData(userId: string, dataDir: string): Prom
             subSource: source 
           } 
         });
+        // ✅ 重要：生成并插入向量（修复向量化流程）
         const vec = embedText(text);
         insertVector(chunkId, userId, vec);
         stats.chunks += 1;

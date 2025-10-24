@@ -68,7 +68,7 @@ export class GeminiProvider {
   async generatePost(input: PostGenerateInput): Promise<string> {
     const model = config.geminiModel;
     const url = `${config.geminiEndpoint}/models/${model}:generateContent?key=${encodeURIComponent(config.googleKey)}`;
-    const prompt = `请以用户(${input.userId})的语言风格写一条动态。${input.context ? `\n上下文:\n${input.context}` : ""}`;
+    const prompt = `请以用户(${input.userId})的Language风格写一条动态。${input.context ? `\nContext:\n${input.context}` : ""}`;
     const body: GenerateContentRequest = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`Gemini post error: ${res.status}`);

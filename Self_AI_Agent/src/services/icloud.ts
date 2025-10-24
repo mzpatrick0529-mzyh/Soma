@@ -12,7 +12,7 @@ import { embedText } from "../pipeline/embeddings";
 export type ICloudCreds = {
   userId: string;
   appleId: string;
-  appPassword: string; // 应用专用密码
+  appPassword: string; // 应用专用Password
 };
 
 export function saveICloudCreds(creds: ICloudCreds) {

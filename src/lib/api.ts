@@ -1,4 +1,4 @@
-// API配置和基础请求函数
+// API配置and基础请求函数
 import { toast } from "sonner";
 
 const RAW_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "";
@@ -233,7 +233,7 @@ export const handleApiError = (error: unknown) => {
     // 根据错误状态码显示不同消息
     switch (apiError.status) {
       case 401:
-        toast.error('登录已过期，请重新登录');
+        toast.error('Login已过期，请重新Login');
         // 清除本地存储的认证信息
         localStorage.removeItem('auth-storage');
         window.location.href = '/auth';
@@ -248,17 +248,17 @@ export const handleApiError = (error: unknown) => {
         toast.error('请求过于频繁，请稍后再试');
         break;
       case 500:
-        toast.error('服务器内部错误，请稍后重试');
+        toast.error('服务器内部错误，请稍后Retry');
         break;
       default:
-        toast.error(apiError.message || '操作失败，请重试');
+        toast.error(apiError.message || '操作失败，请Retry');
     }
     
     return apiError;
   }
   
   const unknownError = { message: '未知错误', status: 0 };
-  toast.error('发生未知错误，请重试');
+  toast.error('发生未知错误，请Retry');
   return unknownError;
 };
 

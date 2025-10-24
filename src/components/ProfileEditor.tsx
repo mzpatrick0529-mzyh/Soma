@@ -76,7 +76,7 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
       toast.success("头像上传成功");
       return mockUrl;
     } catch (error) {
-      toast.error("头像上传失败");
+      toast.error("头像Upload failed");
       throw error;
     } finally {
       setIsUploading(false);
@@ -85,12 +85,12 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast.error("姓名不能为空");
+      toast.error("Name is required");
       return;
     }
 
     if (!formData.email.trim()) {
-      toast.error("邮箱不能为空");
+      toast.error("Email is required");
       return;
     }
 
@@ -105,7 +105,7 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
         avatarUrl = await uploadAvatar(avatarFile);
       }
 
-      // 模拟API调用保存用户信息
+      // 模拟API调用Save用户信息
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // 更新本地状态
@@ -116,11 +116,11 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
         avatar: avatarUrl,
       });
 
-      toast.success("个人资料更新成功");
+      toast.success("Profile更新成功");
       haptic.success();
       onClose();
     } catch (error) {
-      toast.error("保存失败，请重试");
+      toast.error("Save失败，请Retry");
       haptic.error();
     } finally {
       setIsSaving(false);
@@ -147,11 +147,11 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>编辑个人资料</DialogTitle>
+          <DialogTitle>Edit Profile</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* 头像编辑 */}
+          {/* 头像Edit */}
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
               <Avatar className="h-24 w-24">
@@ -189,13 +189,13 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
           {/* 表单字段 */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">姓名</Label>
+              <Label htmlFor="name">Name</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="name"
                   type="text"
-                  placeholder="请输入您的姓名"
+                  placeholder="Please enter your name"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="pl-9"
@@ -205,13 +205,13 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="请输入您的邮箱"
+                  placeholder="Please enter your email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   className="pl-9"
@@ -249,7 +249,7 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
               className="flex-1"
             >
               <X className="h-4 w-4 mr-2" />
-              取消
+              Cancel
             </Button>
             
             <Button
@@ -262,7 +262,7 @@ export const ProfileEditor = ({ isOpen, onClose }: ProfileEditorProps) => {
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                  保存
+                  Save
                 </>
               )}
             </Button>

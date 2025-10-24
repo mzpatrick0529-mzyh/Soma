@@ -116,9 +116,9 @@ export async function summarizeVideoFile(filePath: string): Promise<MediaSummary
 
 export async function summarizeMediaByPath(filePath: string): Promise<MediaSummary> {
   const lower = filePath.toLowerCase();
-  if (/"\.(jpg|jpeg|png|gif|webp|bmp|heic)$/i.test(lower)) return summarizeImage(filePath);
-  if (/"\.(mp3|m4a|aac|wav|flac|ogg)$/i.test(lower)) return summarizeAudioFile(filePath);
-  if (/"\.(mp4|mov|avi|mkv|webm|hevc)$/i.test(lower)) return summarizeVideoFile(filePath);
+  if (/\.(jpg|jpeg|png|gif|webp|bmp|heic)$/i.test(lower)) return summarizeImage(filePath);
+  if (/\.(mp3|m4a|aac|wav|flac|ogg)$/i.test(lower)) return summarizeAudioFile(filePath);
+  if (/\.(mp4|mov|avi|mkv|webm|hevc)$/i.test(lower)) return summarizeVideoFile(filePath);
   // fallback: generic file summary
   const stat = fs.statSync(filePath);
   return {

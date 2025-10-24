@@ -34,7 +34,7 @@ export const CreateContentModal = ({
       onSuccess?.();
       onClose();
     } catch (error) {
-      toast.error("发布失败，请重试");
+      toast.error("发布失败，请Retry");
       throw error;
     } finally {
       setIsSubmitting(false);

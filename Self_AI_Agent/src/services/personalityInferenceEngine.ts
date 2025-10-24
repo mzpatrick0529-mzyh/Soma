@@ -427,7 +427,7 @@ ${relationship.topicsDiscussed.length > 0 ? `- 常聊话题: ${relationship.topi
       : `
 ## 与对话者的关系
 - 对话者身份: 陌生人或初次交流
-- 建议保持礼貌和适度距离
+- 建议保持礼貌and适度距离
 `;
 
     const memoryContext = relevantMemories.length > 0
@@ -445,11 +445,11 @@ ${conversationHistory.slice(-3).map(msg => `${msg.role === 'user' ? '对方' : '
       : '';
 
     return `
-你现在要完全模拟一个真实的人（用户本人）进行对话。你的任务是让对方感觉像在和真人聊天，而不是AI。
+你现在要完全模拟一个真实的人（用户本人）进行对话。你的任务是让对方感觉像在and真人聊天，而不是AI。
 
 # 核心人格特征
 
-## 语言风格
+## Language风格
 - 正式程度: ${this.describeFormalityLevel(p.linguistic!.formalityLevel)} (${(p.linguistic!.formalityLevel * 100).toFixed(0)}%)
 - 平均句长: ${p.linguistic!.sentenceLengthPreference.toFixed(0)}个词 ${this.describeSentenceLength(p.linguistic!.sentenceLengthPreference)}
 - 幽默感: ${this.describeHumor(p.linguistic!.humorFrequency)}
@@ -481,12 +481,12 @@ ${conversationContext}
 
 1. **严格按照上述人格特征回复**，包括：
    - 句子长度控制在${Math.floor(p.linguistic!.sentenceLengthPreference * 0.8)}-${Math.ceil(p.linguistic!.sentenceLengthPreference * 1.2)}词之间
-   - 正式程度必须与设定一致（${p.linguistic!.formalityLevel > 0.7 ? '使用标准书面语' : p.linguistic!.formalityLevel < 0.3 ? '可以使用口语、缩写' : '介于书面语和口语之间'}）
+   - 正式程度必须与设定一致（${p.linguistic!.formalityLevel > 0.7 ? '使用标准书面语' : p.linguistic!.formalityLevel < 0.3 ? '可以使用口语、缩写' : '介于书面语and口语之间'}）
    - 表情符号使用率约${(p.linguistic!.emojiUsageRate * 100).toFixed(0)}%
 
 2. **根据关系调整态度**：
    ${relationship && relationship.intimacyLevel > 0.7 ? '- 对方是亲密好友，可以随意、开玩笑、使用昵称' : ''}
-   ${relationship && relationship.intimacyLevel < 0.3 ? '- 对方关系疏远，保持礼貌和距离感' : ''}
+   ${relationship && relationship.intimacyLevel < 0.3 ? '- 对方关系疏远，保持礼貌and距离感' : ''}
    ${!relationship ? '- 对方是陌生人，保持友好但不过分亲密' : ''}
 
 3. **融入口头禅**：如果有口头禅，在适当时候自然使用（不要每句都用）
@@ -540,7 +540,7 @@ ${conversationContext}
     response: string,
     adjustedPersonality: Partial<PersonalityVector>
   ): Promise<void> {
-    // 保存到personality_training_samples表
+    // Save到personality_training_samples表
     this.db.prepare(`
       INSERT INTO personality_training_samples (
         user_id, conversation_context, target_person,
@@ -593,9 +593,9 @@ ${conversationContext}
     }
 
     if (p.linguistic!.formalityLevel > 0.7) {
-      reasons.push('使用较正式的语言风格');
+      reasons.push('使用较正式的Language风格');
     } else if (p.linguistic!.formalityLevel < 0.3) {
-      reasons.push('使用轻松随意的语言风格');
+      reasons.push('使用轻松随意的Language风格');
     }
 
     if (p.emotional!.baselineSentiment > 0.3) {
@@ -654,7 +654,7 @@ ${conversationContext}
   private describeFormalityLevel(level: number): string {
     if (level > 0.8) return '非常正式（书面语为主）';
     if (level > 0.6) return '较为正式（标准表达）';
-    if (level > 0.4) return '中等正式（口语和书面语混合）';
+    if (level > 0.4) return '中等正式（口语and书面语混合）';
     if (level > 0.2) return '较为随意（口语为主）';
     return '非常随意（网络用语、缩写）';
   }
@@ -680,7 +680,7 @@ ${conversationContext}
   private describeSentiment(sentiment: number): string {
     if (sentiment > 0.3) return '积极乐观';
     if (sentiment < -0.3) return '消极悲观';
-    return '中性平和';
+    return '中性平and';
   }
 
   private describeEmpathy(level: number): string {

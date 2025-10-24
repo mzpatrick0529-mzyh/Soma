@@ -57,7 +57,7 @@ export function DataDeduplicationModal({ userId, onClose, onComplete }: DataDedu
       setStats(data.stats);
     } catch (error: any) {
       toast({
-        title: "加载失败",
+        title: "Failed to load",
         description: error.message || "无法加载重复数据统计",
         variant: "destructive",
       });
@@ -113,7 +113,7 @@ export function DataDeduplicationModal({ userId, onClose, onComplete }: DataDedu
       const result = data.result;
 
       toast({
-        title: "清理完成",
+        title: "清理Completed",
         description: `成功删除 ${result.documents.removed + result.chunks.removed} 条重复数据`,
       });
 
@@ -247,7 +247,7 @@ export function DataDeduplicationModal({ userId, onClose, onComplete }: DataDedu
               {/* 操作按钮 */}
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={onClose} disabled={executing}>
-                  取消
+                  Cancel
                 </Button>
                 <Button
                   variant="default"

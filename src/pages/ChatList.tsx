@@ -1,6 +1,6 @@
 /**
  * 💬 Chat List Page - Soma Style
- * 统一的对话列表设计，流畅的滑动动画，完善的交互功能
+ * Unified chat list design with smooth scrolling animation and complete interactive features
  */
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";

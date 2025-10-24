@@ -9,7 +9,7 @@ export const AuthPage = () => {
   const { login, register, isLoading, error, isAuthenticated, clearError } = useAuthStore();
   const navigate = useNavigate();
 
-  // 如果已经登录，重定向到主页
+  // 如果已经Login，重定向到主页
   useEffect(() => {
     if (isAuthenticated) {
       navigate("/");
@@ -27,7 +27,7 @@ export const AuthPage = () => {
   const handleLogin = async (data: { email: string; password: string }) => {
     try {
       await login({ email: data.email, password: data.password });
-      toast.success("登录成功，欢迎回来！");
+      toast.success("Login成功，Welcome Back！");
     } catch (error) {
       // Error is handled by the store
     }
@@ -41,14 +41,14 @@ export const AuthPage = () => {
   }) => {
     try {
       await register({ name: data.name, email: data.email, password: data.password });
-      toast.success("注册成功，欢迎加入！");
+      toast.success("Sign Up成功，欢迎加入！");
     } catch (error) {
       // Error is handled by the store
     }
   };
 
   const handleForgotPassword = () => {
-    toast.info("密码重置功能开发中...");
+    toast.info("Password重置功能开发中...");
   };
 
   return (
@@ -74,7 +74,7 @@ export const AuthPage = () => {
 
         <div className="mt-8 text-center text-xs text-muted-foreground">
           <p>测试账户：test@example.com</p>
-          <p>密码：password123</p>
+          <p>Password：password123</p>
         </div>
       </div>
     </div>

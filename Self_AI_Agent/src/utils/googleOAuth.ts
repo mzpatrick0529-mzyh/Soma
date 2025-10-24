@@ -1,6 +1,6 @@
 /**
  * Google OAuth and Real-time Sync Configuration
- * Google OAuth 授权和实时同步配置
+ * Google OAuth 授权and实时同步配置
  */
 import * as dotenv from "dotenv";
 

@@ -122,7 +122,7 @@ export function createPersonalityRoutes(db: any, geminiApiKey: string): Router {
         });
       }
 
-      // 保存反馈到数据库
+      // Save反馈到数据库
       const stmt = db.prepare(`
         INSERT INTO personality_feedback (
           user_id, conversation_id, agent_response,

@@ -14,7 +14,7 @@ interface AppState extends LoadingState {
   // 错误状态
   error: string | null;
   
-  // 通知状态
+  // Notifications状态
   notifications: Array<{
     id: string;
     type: 'info' | 'success' | 'warning' | 'error';
@@ -37,7 +37,7 @@ interface AppActions {
   setError: (error: string | null) => void;
   clearError: () => void;
   
-  // 通知管理
+  // Notifications管理
   addNotification: (notification: Omit<AppState['notifications'][0], 'id' | 'timestamp' | 'read'>) => void;
   markNotificationRead: (id: string) => void;
   removeNotification: (id: string) => void;
@@ -74,7 +74,7 @@ export const useAppStore = create<AppStore>()(
       setOnlineStatus: (online: boolean) => {
         set({ isOnline: online });
         
-        // 网络状态变化时添加通知
+        // 网络状态变化时添加Notifications
         if (!online) {
           get().addNotification({
             type: 'warning',
@@ -106,7 +106,7 @@ export const useAppStore = create<AppStore>()(
         set({ error: null });
       },
 
-      // 通知管理
+      // Notifications管理
       addNotification: (notification) => {
         const newNotification = {
           ...notification,
@@ -116,10 +116,10 @@ export const useAppStore = create<AppStore>()(
         };
 
         set(state => ({
-          notifications: [newNotification, ...state.notifications].slice(0, 50), // 最多保留50条通知
+          notifications: [newNotification, ...state.notifications].slice(0, 50), // 最多保留50条Notifications
         }));
 
-        // 自动移除非错误通知（5秒后）
+        // Auto移除非错误Notifications（5秒后）
         if (notification.type !== 'error') {
           setTimeout(() => {
             get().removeNotification(newNotification.id);

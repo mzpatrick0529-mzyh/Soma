@@ -32,7 +32,7 @@ export interface DecryptionProgress {
 /**
  * 解密WeChat数据目录
  * 
- * @param wechatKey - 微信数据库密钥（32位十六进制字符串）
+ * @param wechatKey - WeChat数据库密钥（32位十六进制字符串）
  * @param inputDir - 输入目录（包含ChatPackage/Media/Index）
  * @param outputDir - 输出目录
  * @param onProgress - 进度回调函数
@@ -125,7 +125,7 @@ export async function decryptWeChatData(
 }
 
 /**
- * 检查Python环境和依赖
+ * 检查Python环境and依赖
  * 
  * @returns 环境检查结果
  */
@@ -175,18 +175,18 @@ export async function checkPythonEnvironment(): Promise<{
  */
 export function getKeyExtractionGuide(): string {
   return `
-## 如何获取微信数据库密钥
+## 如何获取WeChat数据库密钥
 
 ### 方法1：使用WeChatMsg工具（推荐）
 1. 下载WeChatMsg: https://github.com/LC044/WeChatMsg
 2. 运行GUI程序
-3. 工具会自动提取并显示密钥
-4. 复制密钥并保存
+3. 工具会Auto提取并显示密钥
+4. 复制密钥并Save
 
 ### 方法2：手动提取（高级）
 **macOS:**
 \`\`\`bash
-# 1. 找到微信数据库文件
+# 1. 找到WeChat数据库文件
 ~/Library/Containers/com.tencent.xinWeChat/Data/Library/Application Support/com.tencent.xinWeChat/*/Message/*.db
 
 # 2. 使用逆向工具提取密钥（需要技术知识）
@@ -195,10 +195,10 @@ export function getKeyExtractionGuide(): string {
 
 **Windows:**
 \`\`\`
-# 1. 微信安装路径
+# 1. WeChat安装路径
 C:\\Users\\<Username>\\Documents\\WeChat Files\\<WxID>\\Msg\\*.db
 
-# 2. 使用WeChatMsg工具自动提取密钥
+# 2. 使用WeChatMsg工具Auto提取密钥
 \`\`\`
 
 ### 密钥格式
@@ -206,8 +206,8 @@ C:\\Users\\<Username>\\Documents\\WeChat Files\\<WxID>\\Msg\\*.db
 - 示例: a1b2c3d4e5f6789012345678901234567890123456789012345678901234abcd
 - 不要分享您的密钥！
 
-### 安全提示
-⚠️ 密钥可以解密您的所有微信聊天记录
+### Security提示
+⚠️ 密钥可以解密您的所有WeChat聊天记录
 ⚠️ 请妥善保管，不要泄露给他人
 ⚠️ 建议使用环境变量存储，不要硬编码在代码中
   `.trim();

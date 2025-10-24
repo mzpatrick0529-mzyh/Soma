@@ -10,7 +10,7 @@ function hashStr(str: string): number {
   return h >>> 0;
 }
 
-export function embedText(text: string, dim = 256): number[] {
+export function embedText(text: string, dim = 1536): number[] {
   const vec = new Float32Array(dim);
   const n = Math.max(1, Math.min(4, Math.floor(text.length / 32) || 2));
   for (let i = 0; i < text.length; i++) {

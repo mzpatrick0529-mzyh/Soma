@@ -1,5 +1,5 @@
 /**
- * 🔧 AI Provider 诊断页面
+ * 🔧 AI Provider Diagnostics页面
  * 显示当前 Provider 状态、配置、配额等信息
  */
 import { useState, useEffect } from "react";
@@ -24,7 +24,7 @@ export default function ProviderDiagnostics() {
       const data = await getProviderInfo();
       setInfo(data);
     } catch (error: any) {
-      toast.error("加载失败: " + error.message);
+      toast.error("Failed to load: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function ProviderDiagnostics() {
               animate={{ opacity: 1, x: 0 }}
               transition={somaSpring}
             >
-              AI Provider 诊断
+              AI Provider Diagnostics
             </motion.h1>
             <motion.p
               className="text-sm text-gray-500 mt-1"
@@ -77,7 +77,7 @@ export default function ProviderDiagnostics() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              查看当前 AI 提供商状态和配置信息
+              View current AI provider status and configuration
             </motion.p>
           </div>
 
@@ -89,7 +89,7 @@ export default function ProviderDiagnostics() {
             className="gap-2"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            刷新
+            Refresh
           </Button>
         </div>
 
@@ -97,7 +97,7 @@ export default function ProviderDiagnostics() {
         {loading ? (
           <Card className="p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
-            <p className="text-sm text-gray-500 mt-4">加载中...</p>
+            <p className="text-sm text-gray-500 mt-4">Loading...</p>
           </Card>
         ) : info ? (
           <motion.div
@@ -110,17 +110,17 @@ export default function ProviderDiagnostics() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <SettingsIcon className="w-5 h-5" />
-                    Provider 配置
+                    Provider Configuration
                   </CardTitle>
                   {info.geminiConfigured ? (
                     <Badge className="bg-green-100 text-green-700">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
-                      已配置
+                      Configured
                     </Badge>
                   ) : (
                     <Badge variant="destructive">
                       <XCircle className="w-3 h-3 mr-1" />
-                      未配置
+                      Not Configured
                     </Badge>
                   )}
                 </div>
@@ -136,21 +136,21 @@ export default function ProviderDiagnostics() {
                     <p className="font-semibold text-lg">{info.model}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">流式输出</p>
+                    <p className="text-sm text-gray-500 mb-1">Streaming Output</p>
                     <p className="font-semibold text-lg">
-                      {info.provider === "gemini" ? "✅ 支持" : "⚠️ 模拟"}
+                      {info.provider === "gemini" ? "✅ Supported" : "⚠️ Simulated"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">RAG 上下文</p>
-                    <p className="font-semibold text-lg">✅ 已启用</p>
+                    <p className="text-sm text-gray-500 mb-1">RAG Context</p>
+                    <p className="font-semibold text-lg">✅ Enabled</p>
                   </div>
                 </div>
 
                 {/* Test Connection */}
                 <div className="pt-4 border-t">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">连接测试</h3>
+                    <h3 className="font-semibold">Connection Test</h3>
                     <Button
                       size="sm"
                       onClick={handleTestConnection}
@@ -160,12 +160,12 @@ export default function ProviderDiagnostics() {
                       {testing ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          测试中...
+                          Testing...
                         </>
                       ) : (
                         <>
                           <RefreshCw className="w-4 h-4" />
-                          测试连接
+                          Test Connection
                         </>
                       )}
                     </Button>
@@ -195,9 +195,9 @@ export default function ProviderDiagnostics() {
                 {/* Configuration Guide */}
                 {!info.geminiConfigured && (
                   <div className="pt-4 border-t">
-                    <h3 className="font-semibold mb-3">配置指南</h3>
+                    <h3 className="font-semibold mb-3">Configuration Guide</h3>
                     <div className="space-y-2 text-sm text-gray-600">
-                      <p>1. 访问 Google AI Studio 获取 API Key：</p>
+                      <p>1. Visit Google AI Studio to get API Key:</p>
                       <a
                         href="https://makersuite.google.com/app/apikey"
                         target="_blank"
@@ -207,9 +207,9 @@ export default function ProviderDiagnostics() {
                         https://makersuite.google.com/app/apikey
                         <ExternalLink className="w-3 h-3" />
                       </a>
-                      <p>2. 编辑后端配置文件 <code className="px-1 py-0.5 bg-gray-100 rounded">.env</code></p>
-                      <p>3. 添加: <code className="px-1 py-0.5 bg-gray-100 rounded">GEMINI_API_KEY=your_key_here</code></p>
-                      <p>4. 后端将自动重载（约2秒）</p>
+                      <p>2. Edit backend configuration file <code className="px-1 py-0.5 bg-gray-100 rounded">.env</code></p>
+                      <p>3. Add: <code className="px-1 py-0.5 bg-gray-100 rounded">GEMINI_API_KEY=your_key_here</code></p>
+                      <p>4. Backend will auto-reload (about 2 seconds)</p>
                     </div>
                   </div>
                 )}
@@ -219,29 +219,29 @@ export default function ProviderDiagnostics() {
         ) : (
           <Card className="p-12 text-center">
             <XCircle className="w-16 h-16 mx-auto text-red-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">加载失败</h3>
-            <p className="text-sm text-gray-500 mb-6">无法连接到后端服务</p>
-            <Button onClick={loadProviderInfo}>重试</Button>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Failed to load</h3>
+            <p className="text-sm text-gray-500 mb-6">Cannot connect to backend service</p>
+            <Button onClick={loadProviderInfo}>Retry</Button>
           </Card>
         )}
 
         {/* Additional Info */}
         <Card>
           <CardHeader>
-            <CardTitle>关于 Provider</CardTitle>
+            <CardTitle>About Provider</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-gray-600">
             <div>
               <h4 className="font-semibold text-gray-800 mb-1">Gemini 2.5 Flash Lite</h4>
-              <p>Google 最新的轻量级大模型，速度快、成本低，免费配额充足。</p>
+              <p>Google's latest lightweight large model, fast speed, low cost, with ample free quota.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-800 mb-1">RAG（检索增强生成）</h4>
-              <p>自动检索你的记忆数据，为 AI 提供个性化上下文，生成更精准的回复。</p>
+              <h4 className="font-semibold text-gray-800 mb-1">RAG (Retrieval Augmented Generation)</h4>
+              <p>Automatically retrieve your memory data, provide AI with personalized context, and generate more accurate responses.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-800 mb-1">流式输出</h4>
-              <p>使用 Server-Sent Events (SSE) 技术，实时传输 AI 生成的文本，提升响应速度。</p>
+              <h4 className="font-semibold text-gray-800 mb-1">Streaming Output</h4>
+              <p>Using Server-Sent Events (SSE) technology, real-time transmission of AI-generated text improves response speed.</p>
             </div>
           </CardContent>
         </Card>

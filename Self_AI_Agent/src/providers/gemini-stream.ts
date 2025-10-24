@@ -7,7 +7,7 @@ type GenerateContentRequest = {
 
 /**
  * Gemini Streaming Provider
- * 使用 streamGenerateContent API 实现真正的流式输出
+ * 使用 streamGenerateContent API 实现真正的Streaming Output
  */
 export class GeminiStreamProvider {
   name = "gemini-stream";
@@ -39,7 +39,7 @@ export class GeminiStreamProvider {
 
   /**
    * 流式生成对话响应
-   * @param input 对话输入（包含历史记录和系统提示）
+   * @param input 对话输入（包含历史记录and系统提示）
    * @returns AsyncGenerator 产生文本片段
    */
   async* generateChatStream(input: ChatGenerateInput): AsyncGenerator<string, void, unknown> {

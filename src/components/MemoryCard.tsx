@@ -51,7 +51,7 @@ export const MemoryCard = ({
       }
       console.log(`Post ${id} ${liked ? 'liked' : 'unliked'}, new count: ${count}`);
     } catch (error) {
-      toast.error('操作失败，请重试');
+      toast.error('操作失败，请Retry');
       console.error('Like/unlike failed:', error);
     }
   };

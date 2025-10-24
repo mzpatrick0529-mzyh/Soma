@@ -54,7 +54,7 @@ export const requestPhotoLibraryPermission = async (): Promise<boolean> => {
       return true;
     }
 
-    // 方法 3: PWA 模式下检查权限
+    // 方法 3: PWA mode下检查权限
     if ("permissions" in navigator) {
       // 注意：目前没有标准的 "photo-library" 权限
       // 但可以检查相关权限
@@ -305,7 +305,7 @@ export const getAlbumPhotos = async (
 };
 
 /**
- * 保存照片到相册（通过下载）
+ * Save照片到相册（通过下载）
  */
 export const savePhotoToLibrary = async (uri: string, filename?: string): Promise<boolean> => {
   try {

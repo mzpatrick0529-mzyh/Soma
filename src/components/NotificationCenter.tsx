@@ -30,7 +30,7 @@ const NotificationIcon = ({ type }: { type: 'info' | 'success' | 'warning' | 'er
 export const NotificationCenter = () => {
   const { notifications, removeNotification, markNotificationRead } = useNotifications();
 
-  // 自动标记为已读（当通知显示3秒后）
+  // Auto标记为已读（当Notifications显示3秒后）
   useEffect(() => {
     notifications.forEach(notification => {
       if (!notification.read && Date.now() - notification.timestamp > 3000) {
@@ -94,7 +94,7 @@ export const NotificationCenter = () => {
       {notifications.length > 5 && (
         <Card className="p-2 text-center bg-muted/50">
           <p className="text-xs text-muted-foreground">
-            还有 {notifications.length - 5} 条通知...
+            还有 {notifications.length - 5} 条Notifications...
           </p>
         </Card>
       )}

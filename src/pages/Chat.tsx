@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-// 卡通头像映射
+// Avatar emoji mapping
 const avatarEmojis: Record<number | string, string> = {
   1: "🤖", // AI Assistant
   2: "👨‍👩‍👧‍👦", // Family Group

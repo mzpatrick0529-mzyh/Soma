@@ -61,14 +61,14 @@ export const SocialActions = ({
       // 模拟API调用
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // 回调通知父组件
+      // 回调Notifications父组件
       onLike?.(newLikedState, newLikesCount);
       
     } catch (error) {
       // 如果失败，回滚状态
       setLiked(!newLikedState);
       setLikesCount(newLikedState ? likesCount - 1 : likesCount + 1);
-      toast.error("操作失败，请重试");
+      toast.error("操作失败，请Retry");
     } finally {
       setTimeout(() => setIsAnimating(false), 200);
     }
@@ -119,20 +119,20 @@ export const SocialActions = ({
       // 模拟API调用
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      toast.success(newBookmarkedState ? "已收藏" : "已取消收藏");
+      toast.success(newBookmarkedState ? "已收藏" : "已Cancel收藏");
       onBookmark?.(newBookmarkedState);
       
     } catch (error) {
       // 回滚状态
       setBookmarked(!newBookmarkedState);
-      toast.error("操作失败，请重试");
+      toast.error("操作失败，请Retry");
     }
   };
 
   return (
     <div className={cn("flex items-center justify-between", className)}>
       <div className="flex items-center gap-4">
-        {/* 点赞按钮 */}
+        {/* Likes按钮 */}
         <Button
           variant="ghost"
           size="sm"
@@ -156,7 +156,7 @@ export const SocialActions = ({
             </span>
           )}
           
-          {/* 点赞动画效果 */}
+          {/* Likes动画效果 */}
           {isAnimating && liked && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-8 h-8 bg-red-500/20 rounded-full animate-ping" />

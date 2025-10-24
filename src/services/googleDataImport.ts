@@ -1,6 +1,6 @@
 /**
  * 🔄 Google Data Import Service
- * 处理 Google Takeout 数据导入、解析和预处理
+ * Handle Google Takeout data import, parsing and preprocessing
  */
 
 export interface GoogleDataSource {
@@ -93,14 +93,14 @@ class GoogleDataImportService {
       const msg = e?.message || String(e);
       // Network / proxy refused
       if (msg.includes('Failed to fetch') || msg.includes('ECONNREFUSED') || msg.includes('NetworkError')) {
-        throw new Error(`无法连接到后端服务 (${this.friendlyTarget})，请确认 Self_AI_Agent 已启动并监听正确端口`);
+        throw new Error(`Cannot connect to backend service (${this.friendlyTarget})，Please confirm Self_AI_Agent is started and listening on the correct port`);
       }
       throw e;
     }
   }
 
   /**
-   * 上传 Google Takeout 压缩文件
+   * Upload Google Takeout archive file
    */
   async uploadTakeoutFile(
     file: File, 
@@ -123,7 +123,7 @@ class GoogleDataImportService {
 
     const { importId } = await response.json();
 
-    // 开始轮询进度
+    // Start polling progress
     if (onProgress) {
       this.pollProgress(importId, onProgress);
     }
@@ -132,7 +132,7 @@ class GoogleDataImportService {
   }
 
   /**
-   * 轮询导入进度
+   * Polling import progress
    */
   private async pollProgress(importId: string, callback: (progress: ImportProgress) => void) {
     const interval = setInterval(async () => {
@@ -155,7 +155,7 @@ class GoogleDataImportService {
   }
 
   /**
-   * 获取导入进度
+   * Get import progress
    */
   async getImportProgress(importId: string): Promise<ImportProgress> {
   const response = await this.safeFetch(`${this.apiEndpoint}/progress/${importId}`);
@@ -168,13 +168,13 @@ class GoogleDataImportService {
   }
 
   /**
-   * 解析 Gmail 数据
+   * Parse Gmail data
    */
   async parseGmailData(file: File): Promise<ImportedData[]> {
     const text = await file.text();
     const emails: ImportedData[] = [];
 
-    // 简化的邮件解析逻辑（实际需要更复杂的MBOX解析）
+    // Simplified email parsing logic (actual implementation needs more complex MBOX parsing)
     const emailPattern = /From:.*?Subject:.*?Date:.*?\n\n([\s\S]*?)(?=From:|$)/g;
     let match;
 
@@ -196,7 +196,7 @@ class GoogleDataImportService {
   }
 
   /**
-   * 解析 Google Drive 文件
+   * Parse Google Drive files
    */
   async parseDriveData(files: File[]): Promise<ImportedData[]> {
     const driveData: ImportedData[] = [];
@@ -220,7 +220,7 @@ class GoogleDataImportService {
   }
 
   /**
-   * 解析 YouTube 历史记录
+   * Parse YouTube history
    */
   async parseYoutubeData(file: File): Promise<ImportedData[]> {
     const text = await file.text();
@@ -239,7 +239,7 @@ class GoogleDataImportService {
   }
 
   /**
-   * 获取统计信息
+   * Get statistics
    */
   async getImportStats(userId: string): Promise<GoogleImportStats> {
   const response = await this.safeFetch(`${this.apiEndpoint}/stats?userId=${encodeURIComponent(userId)}`);
@@ -252,7 +252,7 @@ class GoogleDataImportService {
   }
 
   /**
-   * 删除导入的数据
+   * Delete imported data
    */
   async deleteImportedData(importId: string): Promise<void> {
     const response = await this.safeFetch(`${this.apiEndpoint}/${importId}`, {

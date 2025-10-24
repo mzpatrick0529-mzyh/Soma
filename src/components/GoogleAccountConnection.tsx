@@ -47,7 +47,7 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
     }
   };
 
-  // 连接 Google 账号
+  // 连接 Google Account
   const handleConnect = async () => {
     try {
       const response = await fetch(
@@ -64,8 +64,8 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
       window.location.href = data.authUrl;
     } catch (error: any) {
       toast({
-        title: "连接失败",
-        description: error.message || "无法连接到 Google 账号",
+        title: "Connection failed",
+        description: error.message || "无法连接到 Google Account",
         variant: "destructive",
       });
     }
@@ -74,7 +74,7 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
   // 断开连接
   const handleDisconnect = async () => {
     const confirmed = window.confirm(
-      "确定要断开 Google 账号连接吗？\n\n已同步的数据不会被删除，但将停止自动同步。"
+      "确定要断开 Google Account连接吗？\n\n已同步的数据不会被删除，但将停止Auto同步。"
     );
 
     if (!confirmed) return;
@@ -96,14 +96,14 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
 
       toast({
         title: "已断开连接",
-        description: "Google 账号已断开，数据同步已停止",
+        description: "Google Account已断开，数据同步已停止",
       });
 
       await loadStatus();
     } catch (error: any) {
       toast({
         title: "断开失败",
-        description: error.message || "无法断开 Google 账号连接",
+        description: error.message || "无法断开 Google Account连接",
         variant: "destructive",
       });
     } finally {
@@ -168,15 +168,15 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
     if (googleParam === "connected") {
       toast({
         title: "连接成功",
-        description: "Google 账号已连接，正在进行首次同步...",
+        description: "Google Account已连接，正在进行首次同步...",
       });
       // 清除 URL 参数
       window.history.replaceState({}, "", window.location.pathname);
       loadStatus();
     } else if (googleParam === "error") {
       toast({
-        title: "连接失败",
-        description: errorMessage || "Google 授权失败，请重试",
+        title: "Connection failed",
+        description: errorMessage || "Google 授权失败，请Retry",
         variant: "destructive",
       });
       window.history.replaceState({}, "", window.location.pathname);
@@ -198,7 +198,7 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Mail className="h-5 w-5" />
-          Google 账号同步
+          Google Account同步
         </CardTitle>
         <CardDescription>
           实时同步 Gmail、Drive、Calendar 等服务的数据到您的记忆库
@@ -224,7 +224,7 @@ export function GoogleAccountConnection({ userId }: GoogleAccountConnectionProps
 
             <Button onClick={handleConnect} className="w-full">
               <Mail className="mr-2 h-4 w-4" />
-              连接 Google 账号
+              连接 Google Account
             </Button>
           </div>
         ) : (

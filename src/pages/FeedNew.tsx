@@ -1,6 +1,6 @@
 /**
  * 🌊 Feed Page - Soma Style
- * Twitter/X 风格时间线，Following/Discover 双模式，高质量社交体验
+ * Twitter/X 风格时间线，Following/Discover 双mode，高质量社交体验
  */
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -100,7 +100,7 @@ const mockPosts: Post[] = [
       username: "@designstudio",
       avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=design",
     },
-    content: "新项目上线！用了 3 个月打磨的产品设计，终于和大家见面了 ✨\n\n每一个细节都经过反复推敲，希望能给用户带来愉悦的体验。",
+    content: "新项目上线！用了 3 个月打磨的产品设计，终于and大家见面了 ✨\n\n每一个细节都经过反复推敲，希望能给用户带来愉悦的体验。",
     timestamp: "4小时前",
     likes: 567,
     retweets: 234,
@@ -193,7 +193,7 @@ const Feed = () => {
           : post
       )
     );
-    toast.success(posts.find((p) => p.id === id)?.isRetweeted ? "已取消转发" : "已转发");
+    toast.success(posts.find((p) => p.id === id)?.isRetweeted ? "已Cancel转发" : "已转发");
   };
 
   const handleBookmark = (id: string) => {

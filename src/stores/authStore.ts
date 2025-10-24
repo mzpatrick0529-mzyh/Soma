@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : "登录失败",
+            error: error instanceof Error ? error.message : "Login失败",
           });
           throw error;
         }
@@ -83,7 +83,7 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : "注册失败",
+            error: error instanceof Error ? error.message : "Sign Up失败",
           });
           throw error;
         }
@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthStore>()(
           const updatedUser = { ...currentUser, ...updates };
           set({ user: updatedUser });
           
-          // 保存到localStorage
+          // Save到localStorage
           const persistData = {
             user: updatedUser,
             token: get().token,

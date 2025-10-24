@@ -1,5 +1,5 @@
 /**
- * 人格模拟系统 - TypeScript 类型定义
+ * 人格模拟系统 - TypeScript Type definitions
  */
 
 // ==========================================
@@ -144,7 +144,7 @@ export interface RelationshipProfile {
     formalityDelta: number;          // 相对于基准的调整
     emojiUsageDelta: number;
     responseTimeDelta: number;
-    verbalIntimacy: number;          // 语言亲密度
+    verbalIntimacy: number;          // Language亲密度
   };
   
   // 统计信息
@@ -448,7 +448,7 @@ export interface PersonalitySystemConfig {
   
   training: {
     minSamplesForTraining: number;
-    autoTrainThreshold: number;       // 新样本数达到此值自动训练
+    autoTrainThreshold: number;       // 新样本数达到此值Auto训练
     maxTrainingDurationHours: number;
   };
   

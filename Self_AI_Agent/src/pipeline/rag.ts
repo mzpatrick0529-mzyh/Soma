@@ -10,7 +10,8 @@ export function retrieveRelevant(userId: string, query: string, opts: RetrieveOp
   const topK = Math.max(1, Math.min(50, opts.topK ?? 6));
   const minScore = Math.max(-1, Math.min(1, opts.minScore ?? 0.1));
 
-  const q = embedText(query);
+  // SQLite 兼容：历史向量维度为 256
+  const q = embedText(query, 256);
   const rows = getVectorsByUser(userId);
   const scored = rows.map((r) => {
     const vec = new Float32Array(r.vec.buffer, r.vec.byteOffset, r.dim);
@@ -41,7 +42,8 @@ export function retrieveRelevantHybrid(userId: string, query: string, opts: Hybr
   const sources = opts.sources && opts.sources.length ? opts.sources.map(s => s.toLowerCase()) : null;
   const recentBoost = Math.max(0, Math.min(1, opts.recentBoost ?? 0.15));
 
-  const q = embedText(query);
+  // SQLite 兼容：历史向量维度为 256
+  const q = embedText(query, 256);
   const rows = getVectorsByUser(userId);
 
   const now = Date.now();

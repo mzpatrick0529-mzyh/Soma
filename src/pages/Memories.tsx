@@ -110,13 +110,13 @@ const Memories = () => {
     }
   };
 
-  // 初始加载
+  // Initial loading
   useEffect(() => {
     loadMemories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 
-  // 下拉刷新
+  // 下拉Refresh
   const handleRefresh = async () => {
     await loadMemories(1, true);
   };
@@ -131,7 +131,7 @@ const Memories = () => {
   // 内容创建成功回调
   const handleContentCreated = () => {
     loadMemories(1, true);
-    toast.success("记忆已保存");
+    toast.success("记忆已Save");
   };
 
   const popupOptions = [
@@ -179,7 +179,7 @@ const Memories = () => {
                   size="icon"
                   onClick={() => setShowGoogleImport(true)}
                   className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 border-blue-200/50 shadow-sm"
-                  title="导入 Google 数据"
+                  title="Import Google Data"
                 >
                   <Plus className="h-5 w-5 text-blue-600" />
                 </Button>
@@ -260,8 +260,8 @@ const Memories = () => {
           userId={user.email || user.id}
           onComplete={() => {
             setShowGoogleImport(false);
-            toast.success('数据导入完成！');
-            handleRefresh(); // 刷新列表
+            toast.success('数据导入Completed！');
+            handleRefresh(); // Refresh列表
           }}
         />
       )}

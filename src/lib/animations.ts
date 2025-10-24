@@ -1,11 +1,11 @@
 /**
  * 🎬 Soma Animation System
- * 统一的动画语言，流畅的过渡效果，独特的视觉体验
+ * Unified animation language with smooth transition effects and unique visual experience
  */
 import type { Variants, Transition } from "framer-motion";
 import { designTokens } from "./design-system";
 
-// ===== Soma 核心过渡效果 =====
+// ===== Soma Core Transition Effects =====
 
 // Soma Spring - 主要的弹性动画
 export const somaSpring: Transition = {

@@ -55,7 +55,7 @@ export const PhotoPicker = ({
 
       if (assets.length > 0) {
         setSelectedAssets(assets);
-        toast.success(`已选择 ${assets.length} 张照片`);
+        toast.success(`Selected ${assets.length} 张照片`);
       }
     } catch (error: any) {
       toast.error(`选择照片失败: ${error.message}`);
@@ -83,7 +83,7 @@ export const PhotoPicker = ({
 
       if (assets.length > 0) {
         setSelectedAssets(assets);
-        toast.success(`已选择 ${assets.length} 个视频`);
+        toast.success(`Selected ${assets.length} 个视频`);
       }
     } catch (error: any) {
       toast.error(`选择视频失败: ${error.message}`);
@@ -135,7 +135,7 @@ export const PhotoPicker = ({
     onClose();
   };
 
-  // 取消
+  // Cancel
   const handleCancel = () => {
     setSelectedAssets([]);
     onClose();
@@ -245,7 +245,7 @@ export const PhotoPicker = ({
                 {selectedAssets.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600">
-                      已选择 {selectedAssets.length} 项
+                      Selected {selectedAssets.length} 项
                     </p>
                     <div className="grid grid-cols-4 gap-2">
                       {selectedAssets.map((asset) => (

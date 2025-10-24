@@ -71,22 +71,22 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
               </div>
-              <CardTitle className="text-destructive">出现了一些问题</CardTitle>
+              <CardTitle className="text-destructive">Something went wrong</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                很抱歉，应用遇到了意外错误。我们已经记录了这个问题，将尽快修复。
+                We apologize, the app encountered an unexpected error. We have logged this issue and will fix it as soon as possible.
               </p>
               
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <details className="bg-muted/50 rounded-lg p-3">
                   <summary className="text-sm font-medium cursor-pointer">
-                    错误详情 (开发环境)
+                    Error Details (Development)
                   </summary>
                   <div className="mt-2 text-xs text-muted-foreground">
-                    <p className="font-medium">错误信息:</p>
+                    <p className="font-medium">Error Message:</p>
                     <p className="mb-2">{this.state.error.message}</p>
-                    <p className="font-medium">错误堆栈:</p>
+                    <p className="font-medium">Error Stack:</p>
                     <pre className="whitespace-pre-wrap text-xs">
                       {this.state.error.stack}
                     </pre>
@@ -97,14 +97,14 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="flex flex-col gap-2">
                 <Button onClick={this.handleReset} className="w-full">
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  重新尝试
+                  Try Again
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => window.location.reload()} 
                   className="w-full"
                 >
-                  刷新页面
+                  Refresh Page
                 </Button>
               </div>
             </CardContent>
@@ -123,7 +123,7 @@ export const useErrorHandler = () => {
     console.error('useErrorHandler caught an error:', error, errorInfo);
     
     // 可以在这里添加错误上报逻辑
-    // 或者显示 toast 通知等
+    // 或者显示 toast Notifications等
   };
 
   return { handleError };

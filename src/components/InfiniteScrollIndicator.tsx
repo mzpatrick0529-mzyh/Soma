@@ -28,7 +28,7 @@ export const InfiniteScrollIndicator = ({
             onClick={onRetry}
             className="text-sm text-primary hover:text-primary/80 transition-colors"
           >
-            点击重试
+            点击Retry
           </button>
         )}
       </div>
@@ -39,7 +39,7 @@ export const InfiniteScrollIndicator = ({
     return (
       <div className={cn("flex flex-col items-center py-6", className)}>
         <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
-        <p className="text-sm text-muted-foreground">加载中...</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
   }

@@ -39,13 +39,13 @@ export const useInfiniteScroll = <T>({
         setData(prev => [...prev, ...newData]);
         setPage(prev => prev + 1);
         
-        // 如果返回的数据少于页面大小，表示已到最后一页
+        // If returned data is less than page size, indicates last page
         if (newData.length < pageSize) {
           setHasMore(false);
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "加载失败");
+      setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
     }
@@ -70,7 +70,7 @@ export const useInfiniteScroll = <T>({
     }
   }, [enabled, loadNextPage]);
 
-  // Intersection Observer 设置
+  // Intersection Observer setup
   useEffect(() => {
     if (!enabled || !loadingRef.current) return;
 
@@ -97,7 +97,7 @@ export const useInfiniteScroll = <T>({
     };
   }, [enabled, hasMore, loading, loadNextPage, threshold]);
 
-  // 初始加载
+  // Initial loading
   useEffect(() => {
     if (enabled && data.length === 0 && hasMore) {
       loadNextPage();

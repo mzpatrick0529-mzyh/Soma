@@ -30,7 +30,7 @@ export type FE_PersonaProfile = {
   languages?: string[];
 };
 
-// 扩展：Training 配置
+// Extension: Training configuration
 export interface TrainingConfig {
   model: 'gpt-4' | 'gpt-3.5-turbo' | 'claude-3-sonnet';
   learningRate: number;
@@ -40,7 +40,7 @@ export interface TrainingConfig {
   maxTokens: number;
 }
 
-// 扩展：Training 进度
+// Extension: Training progress
 export interface TrainingProgress {
   stage: 'preparing' | 'embedding' | 'training' | 'validating' | 'deploying' | 'completed' | 'failed';
   progress: number;
@@ -65,7 +65,7 @@ export interface TrainingJob {
   modelId?: string;
 }
 
-// 扩展：Agent Profile
+// Extension: Agent Profile
 export interface SelfAgentProfile {
   id: string;
   name: string;
@@ -117,7 +117,7 @@ export async function generateChat(params: {
   return res.json();
 }
 
-// 新增：流式对话
+// New: Streaming conversation
 export async function* chatStream(params: {
   userId: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
@@ -161,7 +161,7 @@ export async function* chatStream(params: {
   }
 }
 
-// 新增：获取 Agent Profile
+// New: Get Agent Profile
 export async function getAgentProfile(userId: string): Promise<SelfAgentProfile | null> {
   const res = await fetch(`/api/self-agent/profile/${userId}`);
   if (res.status === 404) return null;
@@ -169,7 +169,7 @@ export async function getAgentProfile(userId: string): Promise<SelfAgentProfile 
   return res.json();
 }
 
-// 新增：搜索记忆
+// New: Search memories
 export async function searchMemories(userId: string, query: string, limit: number = 5) {
   const res = await fetch(
     `/api/self-agent/memories/search?userId=${userId}&q=${encodeURIComponent(query)}&limit=${limit}`

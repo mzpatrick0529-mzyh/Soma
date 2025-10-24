@@ -10,7 +10,7 @@ export type TimelineItem = {
 };
 
 export type TimelineSection = {
-  title: string; // 2025年10月13日
+  title: string; // October 13, 2025
   date: string;  // YYYY-MM-DD
   items: TimelineItem[];
 };

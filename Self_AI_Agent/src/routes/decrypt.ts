@@ -20,7 +20,7 @@ const router = express.Router();
 
 /**
  * GET /api/decrypt/check-environment
- * 检查Python环境和依赖是否就绪
+ * 检查Python环境and依赖是否就绪
  */
 router.get('/check-environment', async (req, res) => {
   try {

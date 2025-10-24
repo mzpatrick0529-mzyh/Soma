@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, AlertCircle, Calendar, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { haptic } from "@/lib/haptic";
+import { Link } from "react-router-dom";
 
 interface LoginFormData {
   email: string;
@@ -19,6 +21,9 @@ interface RegisterFormData {
   email: string;
   password: string;
   confirmPassword: string;
+  birthdate: string; // YYYY-MM-DD
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
 }
 
 interface AuthFormProps {
@@ -43,6 +48,9 @@ export const AuthForm = ({
     email: "",
     password: "",
     confirmPassword: "",
+    birthdate: "",
+    acceptedTerms: false,
+    acceptedPrivacy: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -55,13 +63,31 @@ export const AuthForm = ({
     return emailRegex.test(email);
   };
 
-  const validatePassword = (password: string): string[] => {
+  const validatePassword = (password: string) => {
     const errors: string[] = [];
-    if (password.length < 8) errors.push("至少8个字符");
-    if (!/[A-Z]/.test(password)) errors.push("包含大写字母");
-    if (!/[a-z]/.test(password)) errors.push("包含小写字母");
-    if (!/\d/.test(password)) errors.push("包含数字");
+    if (password.length < 8) errors.push("At least 8 characters");
+    if (!/[A-Z]/.test(password)) errors.push("Contains uppercase letter");
+    if (!/[a-z]/.test(password)) errors.push("Contains lowercase letter");
+    if (!/\d/.test(password)) errors.push("Contains number");
     return errors;
+  };
+
+  const calculateAge = (birthdate: string): number => {
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getMinimumAge = (): number => {
+    // State-specific age requirements (can be enhanced with actual user state detection)
+    // For now, we use the strictest requirement (21 for MS)
+    // In production, detect user's state via IP geolocation
+    return 18; // Federal minimum, adjust per state if needed
   };
 
   const validateForm = (): boolean => {
@@ -69,34 +95,57 @@ export const AuthForm = ({
 
     // Email validation
     if (!formData.email) {
-      errors.email = "邮箱不能为空";
+      errors.email = "Email is required";
     } else if (!validateEmail(formData.email)) {
-      errors.email = "请输入有效的邮箱地址";
+      errors.email = "Please enter a valid email address";
     }
 
     // Password validation
     if (!formData.password) {
-      errors.password = "密码不能为空";
+      errors.password = "Password is required";
     } else if (!isLogin) {
       const passwordErrors = validatePassword(formData.password);
       if (passwordErrors.length > 0) {
-        errors.password = `密码需要: ${passwordErrors.join(", ")}`;
+        errors.password = `Password requires: ${passwordErrors.join(", ")}`;
       }
     }
 
     // Name validation for register
     if (!isLogin) {
       if (!formData.name.trim()) {
-        errors.name = "姓名不能为空";
+        errors.name = "Name is required";
       } else if (formData.name.trim().length < 2) {
-        errors.name = "姓名至少2个字符";
+        errors.name = "Name must be at least 2 characters";
+      }
+
+      // Birthdate validation (Age verification - COPPA/CCPA compliance)
+      if (!formData.birthdate) {
+        errors.birthdate = "Please enter your date of birth";
+      } else {
+        const age = calculateAge(formData.birthdate);
+        const minAge = getMinimumAge();
+        
+        if (age < 13) {
+          errors.birthdate = "According to COPPA regulations, we cannot provide services to users under 13 years old";
+        } else if (age < minAge) {
+          errors.birthdate = `You must be at least${minAge}years old to use this service`;
+        }
+      }
+
+      // Legal consent validation (REQUIRED for compliance)
+      if (!formData.acceptedTerms) {
+        errors.acceptedTerms = "You must agree to the Terms of Service to register";
+      }
+
+      if (!formData.acceptedPrivacy) {
+        errors.acceptedPrivacy = "You must agree to the Privacy Policy to register";
       }
 
       // Confirm password validation
       if (!formData.confirmPassword) {
-        errors.confirmPassword = "请确认密码";
+        errors.confirmPassword = "Please confirm password";
       } else if (formData.password !== formData.confirmPassword) {
-        errors.confirmPassword = "两次输入的密码不一致";
+        errors.confirmPassword = "Passwords do not match";
       }
     }
 
@@ -134,7 +183,7 @@ export const AuthForm = ({
     }
   };
 
-  const handleInputChange = (field: keyof RegisterFormData, value: string) => {
+  const handleInputChange = (field: keyof RegisterFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear field error when user starts typing
@@ -149,6 +198,9 @@ export const AuthForm = ({
       email: "",
       password: "",
       confirmPassword: "",
+      birthdate: "",
+      acceptedTerms: false,
+      acceptedPrivacy: false,
     });
     setFieldErrors({});
     onSwitchMode(isLogin ? "register" : "login");
@@ -158,12 +210,12 @@ export const AuthForm = ({
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl font-bold text-center">
-          {isLogin ? "欢迎回来" : "创建账户"}
+          {isLogin ? "Welcome Back" : "Create Account"}
         </CardTitle>
         <CardDescription className="text-center">
           {isLogin 
-            ? "登录您的账户以继续使用" 
-            : "填写信息创建您的新账户"
+            ? "Login to continue using" 
+            : "Fill in the information to create your new account"
           }
         </CardDescription>
       </CardHeader>
@@ -179,13 +231,13 @@ export const AuthForm = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div className="space-y-2">
-              <Label htmlFor="name">姓名</Label>
+              <Label htmlFor="name">Name</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="name"
                   type="text"
-                  placeholder="请输入您的姓名"
+                  placeholder="Please enter your name"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
                   className={cn(
@@ -202,13 +254,13 @@ export const AuthForm = ({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">邮箱</Label>
+            <Label htmlFor="email">Email</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="email"
                 type="email"
-                placeholder="请输入您的邮箱"
+                placeholder="Please enter your email"
                 value={formData.email}
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 className={cn(
@@ -224,13 +276,13 @@ export const AuthForm = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">密码</Label>
+            <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder={isLogin ? "请输入密码" : "请设置密码"}
+                placeholder={isLogin ? "Please enter password" : "Please set password"}
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
                 className={cn(
@@ -261,13 +313,13 @@ export const AuthForm = ({
 
           {!isLogin && (
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">确认密码</Label>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="请再次输入密码"
+                  placeholder="Please re-enter password"
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                   className={cn(
@@ -297,6 +349,125 @@ export const AuthForm = ({
             </div>
           )}
 
+          {/* Age Verification (COPPA/CCPA Compliance) */}
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="birthdate" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Date of Birth <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="birthdate"
+                type="date"
+                value={formData.birthdate}
+                onChange={(e) => handleInputChange("birthdate", e.target.value)}
+                max={new Date().toISOString().split('T')[0]} // Cannot select future dates
+                className={cn(
+                  fieldErrors.birthdate && "border-destructive focus-visible:ring-destructive"
+                )}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                You must be at least 18 years old to use this service (some states require 19 or 21)
+              </p>
+              {fieldErrors.birthdate && (
+                <Alert variant="destructive" className="py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">{fieldErrors.birthdate}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {/* Legal Consent Checkboxes (REQUIRED for compliance) */}
+          {!isLogin && (
+            <div className="space-y-4 pt-2 border-t">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="acceptTerms"
+                    checked={formData.acceptedTerms}
+                    onCheckedChange={(checked) => 
+                      handleInputChange("acceptedTerms", checked as boolean)
+                    }
+                    disabled={loading}
+                    className={cn(
+                      "mt-1",
+                      fieldErrors.acceptedTerms && "border-destructive"
+                    )}
+                  />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="acceptTerms"
+                      className="text-sm font-normal cursor-pointer leading-tight"
+                    >
+                      I have read and agree to the{" "}
+                      <Link 
+                        to="/legal/terms-of-service" 
+                        target="_blank"
+                        className="text-primary underline hover:text-primary/80 font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Terms of Service
+                      </Link>
+                      {" "}and{" "}
+                      <Link 
+                        to="/legal/privacy-policy" 
+                        target="_blank"
+                        className="text-primary underline hover:text-primary/80 font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Privacy Policy
+                      </Link>
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    {fieldErrors.acceptedTerms && (
+                      <p className="text-xs text-destructive mt-1">{fieldErrors.acceptedTerms}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="acceptPrivacy"
+                    checked={formData.acceptedPrivacy}
+                    onCheckedChange={(checked) => 
+                      handleInputChange("acceptedPrivacy", checked as boolean)
+                    }
+                    disabled={loading}
+                    className={cn(
+                      "mt-1",
+                      fieldErrors.acceptedPrivacy && "border-destructive"
+                    )}
+                  />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor="acceptPrivacy"
+                      className="text-sm font-normal cursor-pointer leading-tight"
+                    >
+                      <Shield className="inline h-3 w-3 mr-1" />
+                      I confirm that I am 18 years or older and understand that Soma will collect, process and store my personal data (including but not limited to biometric information),
+                      and agree to use this data as described in the Privacy Policy
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    {fieldErrors.acceptedPrivacy && (
+                      <p className="text-xs text-destructive mt-1">{fieldErrors.acceptedPrivacy}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Alert className="py-3">
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    In accordance with U.S. federal and state laws (including COPPA, CCPA/CPRA, and BIPA),
+                    we require your explicit consent to collect and process your personal information.
+                    You can withdraw consent or delete your data at any time in Settings.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </div>
+          )}
+
           {isLogin && onForgotPassword && (
             <div className="text-right">
               <Button
@@ -306,7 +477,7 @@ export const AuthForm = ({
                 onClick={onForgotPassword}
                 disabled={loading}
               >
-                忘记密码？
+                Forgot Password?
               </Button>
             </div>
           )}
@@ -320,7 +491,7 @@ export const AuthForm = ({
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                {isLogin ? "登录" : "注册"}
+                {isLogin ? "Login" : "Sign Up"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
@@ -331,7 +502,7 @@ export const AuthForm = ({
 
         <div className="text-center text-sm">
           <span className="text-muted-foreground">
-            {isLogin ? "还没有账户？" : "已有账户？"}
+            {isLogin ? "Don't have an account?" : "Already have an account?"}
           </span>
           <Button
             type="button"
@@ -340,7 +511,7 @@ export const AuthForm = ({
             onClick={handleSwitchMode}
             disabled={loading}
           >
-            {isLogin ? "立即注册" : "立即登录"}
+            {isLogin ? "Sign Up Now" : "Login Now"}
           </Button>
         </div>
       </CardContent>

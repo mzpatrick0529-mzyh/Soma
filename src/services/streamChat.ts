@@ -1,6 +1,6 @@
 /**
  * 🌊 Streaming Chat Service
- * 支持 SSE 流式对话
+ * Support SSE streaming conversation
  */
 
 export interface ChatMessage {
@@ -12,18 +12,18 @@ export interface StreamChatOptions {
   userId: string;
   history: ChatMessage[];
   hint?: string;
-  sources?: string[]; // 可选：限制检索来源，如 ["instagram","google"]
+  sources?: string[]; // Optional: limit retrieval sources, such as ["instagram","google"]
   onChunk?: (text: string) => void;
   onComplete?: (fullText: string) => void;
   onError?: (error: Error) => void;
 }
 
 /**
- * 流式对话 API 调用
+ * Streaming conversation API call
  */
 export async function streamChat(options: StreamChatOptions): Promise<void> {
   const { userId, history, hint, sources, onChunk, onComplete, onError } = options;
-  // 统一走相对路径，由 Vite 代理到后端
+  // Use relative path uniformly, proxied to backend by Vite
   const API_BASE = "/api";
 
   try {
@@ -87,7 +87,7 @@ export async function streamChat(options: StreamChatOptions): Promise<void> {
 }
 
 /**
- * Provider 信息查询
+ * Provider information query
  */
 export interface ProviderInfo {
   provider: "gemini" | "openai";
@@ -104,7 +104,7 @@ export async function getProviderInfo(): Promise<ProviderInfo> {
 }
 
 /**
- * 测试 Provider 连接
+ * Test Provider connection
  */
 export async function testProviderConnection(): Promise<{ success: boolean; message: string }> {
   try {
@@ -112,17 +112,17 @@ export async function testProviderConnection(): Promise<{ success: boolean; mess
     if (info.provider === "openai" && info.model === "openai-stub") {
       return {
         success: false,
-        message: "当前使用模拟 Provider，请配置 GEMINI_API_KEY",
+        message: "Currently using simulated Provider, please configure GEMINI_API_KEY",
       };
     }
     return {
       success: true,
-      message: `✅ ${info.provider} (${info.model}) 配置成功`,
+      message: `✅ ${info.provider} (${info.model}) Configuration successful`,
     };
   } catch (error: any) {
     return {
       success: false,
-      message: `连接失败: ${error.message}`,
+      message: `Connection failed: ${error.message}`,
     };
   }
 }

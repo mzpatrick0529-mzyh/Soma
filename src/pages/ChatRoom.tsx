@@ -126,7 +126,7 @@ export default function ChatRoom() {
           senderId: "self-agent",
           senderName: "Self Agent",
           type: "text",
-          content: "你好！我是你的 Self Agent，基于你的记忆数据训练而成。我可以模拟你的思考、语言和行为方式。有什么我可以帮助你的吗？",
+          content: "你好！我是你的 Self Agent，基于你的记忆数据训练而成。我可以模拟你的思考、Languageand行为方式。有什么我可以帮助你的吗？",
           timestamp: Date.now(),
           status: "read",
         },
@@ -580,7 +580,7 @@ export default function ChatRoom() {
             </h3>
             <p className="text-sm text-gray-500 max-w-xs">
               {chatInfo.type === "ai" 
-                ? "我是基于你的记忆数据训练的 AI，可以模拟你的思考和行为方式"
+                ? "我是基于你的记忆数据训练的 AI，可以模拟你的思考and行为方式"
                 : `发送消息开始与 ${chatInfo.name} 聊天`
               }
             </p>

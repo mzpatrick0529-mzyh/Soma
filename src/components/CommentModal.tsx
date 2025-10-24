@@ -137,7 +137,7 @@ export const CommentModal = ({
       toast.success("评论发布成功");
 
     } catch (error) {
-      toast.error("评论发布失败，请重试");
+      toast.error("评论发布失败，请Retry");
     } finally {
       setIsSubmitting(false);
     }
@@ -148,7 +148,7 @@ export const CommentModal = ({
 
     try {
       if (isReply && parentId) {
-        // 点赞回复
+        // Likes回复
         setComments(prev => prev.map(c => {
           if (c.id === parentId) {
             return {
@@ -168,7 +168,7 @@ export const CommentModal = ({
           return c;
         }));
       } else {
-        // 点赞评论
+        // Likes评论
         setComments(prev => prev.map(c => {
           if (c.id === commentId) {
             return {

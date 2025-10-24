@@ -13,12 +13,12 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { isAuthenticated } = useAuthStore();
 
-  // 如果需要认证但用户未登录，重定向到登录页
+  // 如果需要认证但用户未Login，重定向到Login页
   if (requireAuth && !isAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
 
-  // 如果不需要认证但用户已登录，重定向到主页（用于登录页）
+  // 如果不需要认证但用户已Login，重定向到主页（用于Login页）
   if (!requireAuth && isAuthenticated) {
     return <Navigate to="/" replace />;
   }

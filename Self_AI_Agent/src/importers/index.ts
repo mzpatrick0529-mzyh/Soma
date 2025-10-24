@@ -1,6 +1,6 @@
 /**
  * Unified Data Importer Coordinator
- * 统一数据导入协调器 - 自动识别数据源并调用相应的导入器
+ * 统一数据导入协调器 - Auto识别数据源并调用相应的导入器
  */
 import fs from "fs";
 import path from "path";
@@ -22,7 +22,7 @@ export type ImportStats = {
  */
 export function detectDataSource(extractedDir: string): DataSource {
   try {
-    const entries = fs.readdirSync(extractedDir, { withFileTypes: true });
+  const entries = fs.readdirSync(extractedDir, { withFileTypes: true });
     const files = entries.filter(e => e.isFile()).map(e => e.name.toLowerCase());
     const dirs = entries.filter(e => e.isDirectory()).map(e => e.name.toLowerCase());
     
@@ -43,7 +43,7 @@ export function detectDataSource(extractedDir: string): DataSource {
     
   // 检查 WeChat 特征
   // WeChat 导出通常包含: chat, message, contact, moment, ChatPackage, Index 等关键词
-  const wechatKeywords = ["wechat", "weixin", "微信", "chat", "message", "chatpackage", "index", "mm.sqlite", "wcdb", "microMsg", "msg.db"]; 
+  const wechatKeywords = ["wechat", "weixin", "WeChat", "chat", "message", "chatpackage", "index", "mm.sqlite", "wcdb", "microMsg", "msg.db"]; 
     const hasWeChatIndicator = dirs.some(dir => 
       wechatKeywords.some(kw => dir.includes(kw))
     ) || files.some(file => 
@@ -68,7 +68,7 @@ export function detectDataSource(extractedDir: string): DataSource {
       return "google";
     }
     
-    // 深度检查：读取一些文件内容
+  // 深度检查：读取一些文件内容（顶层）
     for (const file of files.slice(0, 5)) {
       if (file.endsWith(".json")) {
         try {
@@ -93,6 +93,44 @@ export function detectDataSource(extractedDir: string): DataSource {
       }
     }
     
+    // 递归深度检查（最多搜索到 3 层目录）
+    const maxDepth = 3;
+    const queue: string[] = dirs.map((d) => path.join(extractedDir, d));
+    let depth = 0;
+    while (queue.length && depth < maxDepth) {
+      const levelSize = queue.length;
+      for (let i = 0; i < levelSize; i++) {
+        const dirPath = queue.shift()!;
+        let dirents: fs.Dirent[] = [];
+        try {
+          dirents = fs.readdirSync(dirPath, { withFileTypes: true });
+        } catch {}
+        const subFiles = dirents.filter(e => e.isFile()).map(e => e.name.toLowerCase());
+        const subDirs = dirents.filter(e => e.isDirectory()).map(e => e.name.toLowerCase());
+
+        const joinedNames = [...subFiles, ...subDirs].join(' ');
+        const wechatKeywords = ["wechat", "weixin", "WeChat", "chat", "message", "chatpackage", "index", "mm.sqlite", "wcdb", "micromsg", "msg.db"]; 
+        if (wechatKeywords.some(kw => joinedNames.includes(kw))) {
+          console.log("[detect] Detected WeChat via deep scan");
+          return "wechat";
+        }
+        const instagramHit = ["messages", "posts", "stories", "media", "comments"].some((k) => subDirs.includes(k));
+        if (instagramHit) {
+          console.log("[detect] Detected Instagram via deep scan");
+          return "instagram";
+        }
+        const googleHit = ["gmail", "drive", "calendar", "youtube", "photos", "chrome", "maps", "search", "takeout"].some((k) => subDirs.includes(k));
+        if (googleHit) {
+          console.log("[detect] Detected Google via deep scan");
+          return "google";
+        }
+
+        // 加入下一层目录
+        for (const sd of subDirs) queue.push(path.join(dirPath, sd));
+      }
+      depth++;
+    }
+
     console.log("[detect] Unknown data source, defaulting to Google");
     return "unknown";
   } catch (error) {
@@ -109,7 +147,7 @@ export async function importUnifiedData(
   extractedDir: string,
   sourceHint?: DataSource
 ): Promise<ImportStats> {
-  // 使用提供的 hint 或自动检测
+  // 使用提供的 hint 或Auto检测
   const source = sourceHint || detectDataSource(extractedDir);
   
   console.log(`[import] Starting import for source: ${source}`);

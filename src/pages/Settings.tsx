@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   User, 
   Bell, 
@@ -9,7 +10,9 @@ import {
   Shield,
   LogOut,
   ChevronRight,
-  Edit3
+  Edit3,
+  FileText,
+  ScrollText
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,27 +26,45 @@ import { bounceUp, containerReverseStagger, fadeDown } from "@/lib/motion";
 
 const Settings = () => {
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
-    toast.success("已安全退出");
+    toast.success("已Security退出");
   };
 
   const settingsSections = [
     {
       title: "应用设置",
       items: [
-        { icon: Bell, label: "通知设置", subtitle: "管理推送通知", onClick: () => toast.info("通知设置功能开发中") },
-        { icon: Lock, label: "隐私与安全", subtitle: "账户安全设置", onClick: () => toast.info("隐私设置功能开发中") },
-        { icon: Palette, label: "主题外观", subtitle: "个性化界面", onClick: () => toast.info("主题设置功能开发中") },
-        { icon: Globe, label: "语言与地区", subtitle: "本地化设置", onClick: () => toast.info("语言设置功能开发中") },
+        { icon: Bell, label: "Notifications设置", subtitle: "管理Push Notifications", onClick: () => toast.info("Notifications设置功能开发中") },
+        { icon: Lock, label: "Privacy & Security", subtitle: "账户Security设置", onClick: () => toast.info("Privacy settings feature under development") },
+        { icon: Palette, label: "ThemeAppearance", subtitle: "个性化界面", onClick: () => toast.info("Theme设置功能开发中") },
+        { icon: Globe, label: "Language与地区", subtitle: "本地化设置", onClick: () => toast.info("Language settings feature under development") },
+      ],
+    },
+    {
+      title: "法律与合规",
+      items: [
+        { 
+          icon: FileText, 
+          label: "Terms of Service", 
+          subtitle: "查看Terms of Serviceand使用协议", 
+          onClick: () => navigate("/legal/terms-of-service")
+        },
+        { 
+          icon: ScrollText, 
+          label: "Privacy Policy", 
+          subtitle: "了解数据收集and隐私保护", 
+          onClick: () => navigate("/legal/privacy-policy")
+        },
       ],
     },
     {
       title: "帮助与支持",
       items: [
-        { icon: Shield, label: "数据与隐私合规", subtitle: "查看隐私政策", onClick: () => toast.info("查看合规政策...") },
+        { icon: Shield, label: "数据Security", subtitle: "账户Security与数据保护", onClick: () => toast.info("Security settings feature under development") },
         { icon: HelpCircle, label: "帮助与支持", subtitle: "获取帮助", onClick: () => toast.info("帮助功能开发中") },
       ],
     },
@@ -102,7 +123,7 @@ const Settings = () => {
                         className="bg-white/50 hover:bg-white/80 border-gray-200"
                       >
                         <Edit3 className="h-4 w-4 mr-2" />
-                        编辑
+                        Edit
                       </Button>
                     </motion.div>
                   </div>
@@ -170,7 +191,7 @@ const Settings = () => {
                   className="w-full justify-start p-4 h-auto text-red-600 hover:text-red-700 hover:bg-red-50/80"
                 >
                   <LogOut className="h-5 w-5 mr-3" />
-                  退出登录
+                  Logout
                 </Button>
               </motion.div>
             </Card>

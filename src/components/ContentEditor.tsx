@@ -47,7 +47,7 @@ export const ContentEditor = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 自动调整文本区域高度
+  // Auto调整文本区域高度
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -61,7 +61,7 @@ export const ContentEditor = ({
       setText(value);
       adjustTextareaHeight();
       
-      // 自动提取标签
+      // Auto提取标签
       const hashtagRegex = /#[\w\u4e00-\u9fa5]+/g;
       const extractedTags = value.match(hashtagRegex) || [];
       setTags(extractedTags.map(tag => tag.slice(1))); // 移除 # 号
@@ -86,7 +86,7 @@ export const ContentEditor = ({
         uploading: true,
       };
 
-      // 为图片和视频生成预览
+      // 为图片and视频生成预览
       if (type === "image" || type === "video") {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -299,7 +299,7 @@ export const ContentEditor = ({
               onClick={onCancel}
               disabled={isSubmitting}
             >
-              取消
+              Cancel
             </Button>
           )}
           
