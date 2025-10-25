@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:all": "concurrently -n FRONT,SELF -c blue,magenta \"vite\" \"npm --prefix Self_AI_Agent run dev\"",
+    "dev:all": "concurrently -n FRONT,SELF -c blue,magenta \"vite\" \"npm --prefix Self_Agent run dev\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dev:self": "npm --prefix Self_AI_Agent run dev",
-    "build:self": "npm --prefix Self_AI_Agent run build",
-    "start:self": "npm --prefix Self_AI_Agent run start",
+    "dev:self": "npm --prefix Self_Agent run dev",
+    "build:self": "npm --prefix Self_Agent run build",
+    "start:self": "npm --prefix Self_Agent run start",
     "gen:pitch": "node tools/generate_pitch.mjs"
   },
   "dependencies": {

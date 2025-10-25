@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,8 @@ import NotFound from "./pages/NotFound";
 import ProviderDiagnostics from "./pages/ProviderDiagnostics";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfServicePage from "./pages/TermsOfServicePage";
+import TrainingSamplesPage from "./pages/TrainingSamples";
+const AdminLazy = React.lazy(() => import("./pages/Admin"));
 
 const queryClient = new QueryClient();
 
@@ -69,6 +72,8 @@ const App = () => (
                 <Layout>
                   <Routes>
                     <Route path="/" element={<Memories />} />
+                    <Route path="/training/samples" element={<TrainingSamplesPage />} />
+                    <Route path="/admin" element={<Suspense fallback={null}><AdminLazy /></Suspense>} />
                     <Route path="/chat" element={<Chat />} />
                     <Route path="/chat/:chatId" element={<ChatRoom />} />
                     <Route path="/feed" element={<Feed />} />

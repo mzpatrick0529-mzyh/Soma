@@ -182,7 +182,7 @@ const MemoriesOptimized = () => {
       label: "View Statistics",
       onClick: () => {
         setShowPopup(false);
-        toast.info("Statistics coming soon");
+        navigate("/training/samples");
       },
     },
     {

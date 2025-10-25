@@ -1,0 +1,70 @@
+# Prometheus Configuration for Soma ML Service Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'soma-ml-cluster'
+    environment: 'production'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ML Service Instances
+  - job_name: 'ml-service'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - 'ml-instance-1:8788'
+          - 'ml-instance-2:8788'
+          - 'ml-instance-3:8788'
+        labels:
+          service: 'ml-service'
+    metrics_path: '/metrics'
+    
+  # Nginx Load Balancer
+  - job_name: 'nginx-lb'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - 'nginx-lb:8788'
+        labels:
+          service: 'nginx-lb'
+    metrics_path: '/metrics'
+    
+  # Redis Cache
+  - job_name: 'redis'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - 'redis:6379'
+        labels:
+          service: 'redis'
+    
+  # PostgreSQL Database
+  - job_name: 'postgres'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'postgres:5432'
+        labels:
+          service: 'postgres'
+    
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+        labels:
+          service: 'prometheus'

@@ -1,0 +1,45 @@
+# Phase 5 & 6: Deep Cognitive Modeling + Production Optimization - Python Dependencies
+
+# Core ML & NLP
+spacy>=3.7.0
+networkx>=3.2.0
+scikit-learn>=1.4.0
+numpy>=1.24.0
+pandas>=2.1.0
+
+# Deep learning (optional but recommended)
+torch>=2.1.0
+transformers>=4.36.0
+
+# Database
+better-sqlite3-python>=0.4.0
+psycopg2-binary>=2.9.0  # PostgreSQL support
+
+# Phase 6: Production Dependencies
+redis>=5.0.0  # Redis cache
+prometheus-client>=0.19.0  # Prometheus metrics
+python-json-logger>=2.0.0  # Structured logging
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# API integration
+requests>=2.31.0
+fastapi>=0.109.0
+uvicorn>=0.27.0
+python-multipart>=0.0.6
+
+# Monitoring & Performance
+aioredis>=2.0.0  # Async Redis
+aioprometheus>=23.0.0  # Async Prometheus
+
+# Visualization (for debugging)
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+locust>=2.20.0  # Load testing

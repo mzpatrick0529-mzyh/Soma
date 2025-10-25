@@ -28,6 +28,8 @@ import decryptRouter from "./routes/decrypt";
 import { createUserModelRoutes } from "./routes/userModel";
 import trainingRouter from "./routes/training";
 import chatInferenceRouter from "./routes/chatInference";
+import feedbackLoopRouter from "./routes/feedbackLoop";
+import cognitiveModelingRouter from "./routes/cognitiveModeling";
 import multer from "multer";
 import { summarizeMediaByPath } from "./utils/media";
 import { embedText } from "./pipeline/embeddings";
@@ -73,6 +75,8 @@ apiRouter.use("/decrypt", decryptRouter);
 apiRouter.use("/user-model", createUserModelRoutes());
 apiRouter.use("/self-agent/training", trainingRouter);
 apiRouter.use("/self-agent/chat", chatInferenceRouter);
+apiRouter.use("/self-agent/feedback", feedbackLoopRouter);
+apiRouter.use("/self-agent/cognitive", cognitiveModelingRouter);  // Phase 5: Deep Cognitive Modeling
 
 // === PG Vector Index Maintenance (admin) ===
 apiRouter.post("/self-agent/admin/pg/maintenance", async (req: Request, res: Response) => {

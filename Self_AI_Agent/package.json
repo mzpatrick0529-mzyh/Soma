@@ -8,7 +8,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "migrate:supabase": "tsx scripts/migrate_sqlite_to_supabase.ts"
+    "migrate:supabase": "tsx scripts/migrate_sqlite_to_supabase.ts",
+    "test": "tsx src/tests/run_tests.ts"
   },
   "dependencies": {
     "@types/cors": "^2.8.19",

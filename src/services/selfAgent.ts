@@ -224,3 +224,100 @@ export async function importGoogleTakeout(params: { userId: string; dir: string 
   if (!res.ok) throw new Error(`Import failed: ${res.status}`);
   return res.json() as Promise<{ ok: boolean; stats: { files: number; docs: number; chunks: number } }>;
 }
+
+// ===== Training samples management (frontend) =====
+
+export async function apiGenerateTrainingSamples(params: {
+  userId: string;
+  source?: 'instagram' | 'google' | 'wechat' | 'all';
+  minQuality?: number;
+  maxSamples?: number;
+  jaccardThreshold?: number;
+  semanticThreshold?: number;
+}) {
+  const res = await fetch(`/api/self-agent/training/generate-samples`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`generate-samples failed: ${res.status}`);
+  return res.json() as Promise<{ success: boolean; samplesCreated: number; stats: any }>;
+}
+
+export async function apiListTrainingSamples(params: {
+  userId: string;
+  limit?: number;
+  offset?: number;
+  style?: string;
+  intent?: string;
+  source?: string;
+  template?: 0 | 1;
+  order?: 'created_at_desc' | 'quality_desc';
+}) {
+  const qs = new URLSearchParams();
+  qs.set('userId', params.userId);
+  if (params.limit) qs.set('limit', String(params.limit));
+  if (params.offset) qs.set('offset', String(params.offset));
+  if (params.style) qs.set('style', params.style);
+  if (params.intent) qs.set('intent', params.intent);
+  if (params.source) qs.set('source', params.source);
+  if (typeof params.template === 'number') qs.set('template', String(params.template));
+  if (params.order) qs.set('order', params.order);
+  const res = await fetch(`/api/self-agent/training/samples?${qs.toString()}`, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error(`list-samples failed: ${res.status}`);
+  return res.json() as Promise<{ total: number; items: Array<any> }>;
+}
+
+export async function apiDeleteTrainingSample(id: string) {
+  const res = await fetch(`/api/self-agent/training/sample/${id}`, { method: 'DELETE', headers: getAuthHeader() });
+  if (!res.ok) throw new Error(`delete-sample failed: ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; changes: number }>;
+}
+
+// ===== Evaluation & A/B (frontend) =====
+
+export async function apiEvalRun(params: { userId: string; source?: 'training_samples' | 'adhoc'; limit?: number; prompts?: string[]; mode?: 'retrieval-summary' | 'model' }) {
+  const res = await fetch(`/api/self-agent/eval/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`eval-run failed: ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; runId: string; summary: any; total: number }>;
+}
+
+export async function apiEvalGetRun(runId: string) {
+  const res = await fetch(`/api/self-agent/eval/run/${runId}`, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error(`eval-get-run failed: ${res.status}`);
+  return res.json() as Promise<{ run: any; items: any[] }>;
+}
+
+export function apiEvalExportUrl(runId: string, ext: 'json' | 'csv') {
+  return `/api/self-agent/eval/exports/${runId}.${ext}`;
+}
+
+export async function apiAbGenerate(params: { userId: string; prompts: string[]; modelA: string; modelB: string }) {
+  const res = await fetch(`/api/self-agent/eval/ab/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`ab-generate failed: ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; count: number }>;
+}
+
+export async function apiAbList(userId: string) {
+  const res = await fetch(`/api/self-agent/eval/ab/list?userId=${encodeURIComponent(userId)}`, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error(`ab-list failed: ${res.status}`);
+  return res.json() as Promise<{ items: any[] }>;
+}
+
+export async function apiAbVote(params: { pairId: string; choice: 'A' | 'B' | 'tie' | 'skip' }) {
+  const res = await fetch(`/api/self-agent/eval/ab/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`ab-vote failed: ${res.status}`);
+  return res.json() as Promise<{ ok: boolean }>;
+}
