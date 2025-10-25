@@ -412,6 +412,18 @@ graph TB
 
 | 组件 | Phase | 功能 | 状态 |
 |------|-------|------|------|
+| **Database Schema** | 0 | 6层人格建模表结构设计 | ✅ 完成 |
+| **Persona Profiles Table** | 0 | 核心身份/认知/语言/情感/社交/时空 | ✅ 完成 |
+| **Relationship Profiles Table** | 0 | 关系图谱与互动历史 | ✅ 完成 |
+| **Evaluation Metrics Table** | 0 | 基线评估指标系统 | ✅ 完成 |
+| **Profile Analyzer** | 1 | 语言特征/情感档案/社交动态提取 | ✅ 完成 |
+| **Relationship Analyzer** | 1 | 亲密度/正式度/关系类型推断 | ✅ 完成 |
+| **Evaluation Metrics** | 1 | 风格一致性/内容质量/图灵测试 | ✅ 完成 |
+| **AI-Powered Deep Analysis** | 1 | Gemini驱动的深层人格分析 | ✅ 完成 |
+| **Sample Augmenter** | 2 | 风格迁移/场景泛化/困难负样本 | ✅ 完成 |
+| **Multi-Task Trainer** | 2 | 联合损失函数(Gen+Style+Relation+Contrastive) | ✅ 完成 |
+| **Style Loss Module** | 2 | 风格embedding距离优化 | ✅ 完成 |
+| **Contrastive Learning** | 2 | 正负样本对比学习(InfoNCE) | ✅ 完成 |
 | **Context Detector** | 3 | 检测对话上下文(工作/生活/情感) | ✅ 完成 |
 | **Persona Selector** | 3 | 基于上下文选择人格 | ✅ 完成 |
 | **Conversation Memory** | 3 | 短期对话历史管理 | ✅ 完成 |
