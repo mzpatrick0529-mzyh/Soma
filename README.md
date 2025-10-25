@@ -373,78 +373,94 @@ Self AI Agent是Soma的核心AI引擎,负责个性化模型训练、推理和持
 
 ```mermaid
 graph TB
+    subgraph "Phase 0-1: 数据基础与分析"
+        P0A[原始记忆数据] --> P1A[Profile Analyzer]
+        P0A --> P1B[Relationship Analyzer]
+        P1A --> P0B[(Persona Profiles<br/>6层人格建模)]
+        P1B --> P0C[(Relationship Profiles<br/>关系图谱)]
+        P0B --> P2A
+        P0C --> P2A
+    end
+    
+    subgraph "Phase 2: 多任务训练"
+        P2A[Sample Augmenter<br/>数据增强] --> P2B[Multi-Task Trainer<br/>4种损失联合优化]
+        P2B --> P2C[微调后人格模型]
+    end
+    
     subgraph "Phase 3: 上下文感知推理"
-        A[Context Detector] --> E[Inference Engine]
-        B[Persona Selector] --> E
-        C[Conversation Memory] --> E
-        D[Enhanced Prompt Builder] --> E
-        E --> F[Style Calibrator]
-        F --> G[Fact Checker]
+        P2C --> A[Context Detector<br/>4维上下文检测]
+        A --> E[Inference Engine<br/>动态推理]
+        B[Persona Selector<br/>权重调整] --> E
+        C[Conversation Memory<br/>3层记忆] --> E
+        D[Enhanced Prompt Builder<br/>多层融合] --> E
+        E --> F[Style Calibrator<br/>风格校准]
+        F --> G[Fact Checker<br/>事实验证]
     end
     
     subgraph "Phase 4: 反馈与在线学习"
-        H[Feedback Collector] --> I[Reward Model]
-        I --> J[Online Learner]
-        J --> K[Drift Detector]
-        K --> L[A/B Testing]
+        G --> H[Feedback Collector<br/>显式+隐式]
+        H --> I[Reward Model<br/>RLHF-lite]
+        I --> J[Online Learner<br/>增量更新]
+        J --> K[Drift Detector<br/>漂移监测]
+        K --> L[A/B Testing<br/>版本对比]
+        L --> P2C
     end
     
-    subgraph "Phase 5-6: 认知建模"
-        M[Values Inferencer] --> P[Theory of Mind]
-        N[Emotions Tracker] --> P
-        O[Causal Reasoner] --> P
-        P --> Q[Narrative Generator]
+    subgraph "Phase 5-6: 深度认知建模"
+        M[Values Inferencer<br/>15类价值+冲突检测] --> P[Theory of Mind<br/>3层透视递归]
+        N[Emotions Tracker<br/>认知评价理论] --> P
+        O[Causal Reasoner<br/>5种推理+知识图谱] --> P
+        P --> Q[Narrative Generator<br/>生命叙事]
     end
     
     subgraph "Phase 7: 生产优化"
-        R[Model Quantization] --> U[ML Server]
-        S[Intelligent Cache] --> U
-        T[Load Balancer] --> U
-        U --> V[Monitoring]
+        Q --> R[Model Quantization<br/>INT8+剪枝+蒸馏]
+        R --> U[ML Server<br/>3实例+LB]
+        S[Intelligent Cache<br/>4策略预热] --> U
+        T[Load Balancer<br/>Nginx轮询] --> U
+        U --> V[Monitoring<br/>Prometheus+Grafana]
     end
     
-    G --> H
-    L --> M
-    Q --> R
+    P --> E
 ```
 
 ### 核心组件
 
 | 组件 | Phase | 功能 | 状态 |
 |------|-------|------|------|
-| **Database Schema** | 0 | 6层人格建模表结构设计 | ✅ 完成 |
-| **Persona Profiles Table** | 0 | 核心身份/认知/语言/情感/社交/时空 | ✅ 完成 |
-| **Relationship Profiles Table** | 0 | 关系图谱与互动历史 | ✅ 完成 |
-| **Evaluation Metrics Table** | 0 | 基线评估指标系统 | ✅ 完成 |
-| **Profile Analyzer** | 1 | 语言特征/情感档案/社交动态提取 | ✅ 完成 |
-| **Relationship Analyzer** | 1 | 亲密度/正式度/关系类型推断 | ✅ 完成 |
-| **Evaluation Metrics** | 1 | 风格一致性/内容质量/图灵测试 | ✅ 完成 |
-| **AI-Powered Deep Analysis** | 1 | Gemini驱动的深层人格分析 | ✅ 完成 |
-| **Sample Augmenter** | 2 | 风格迁移/场景泛化/困难负样本 | ✅ 完成 |
+| **Database Schema** | 0 | 6层人格建模(身份/认知/语言/情感/社交/时空) | ✅ 完成 |
+| **Persona Profiles Table** | 0 | 30+字段存储人格特征(PostgreSQL) | ✅ 完成 |
+| **Relationship Profiles Table** | 0 | 关系图谱(亲密度/正式度/信任度) | ✅ 完成 |
+| **Evaluation Metrics Table** | 0 | 评测指标(BLEU/ROUGE/图灵测试) | ✅ 完成 |
+| **Profile Analyzer** | 1 | 统计分析500条消息(emoji/俚语/正式度) | ✅ 完成 |
+| **Relationship Analyzer** | 1 | 亲密度公式(频率35%+长度25%+情感25%+时长15%) | ✅ 完成 |
+| **Evaluation Metrics** | 1 | 风格一致性(Cosine距离)+内容质量(BLEU/ROUGE) | ✅ 完成 |
+| **AI-Powered Deep Analysis** | 1 | Gemini 2.0 Flash分析100条样本(价值观/推理模式) | ✅ 完成 |
+| **Sample Augmenter** | 2 | 4种增强策略(风格迁移/场景泛化/关系对比/负样本挖掘) | ✅ 完成 |
 | **Multi-Task Trainer** | 2 | 联合损失函数(Gen+Style+Relation+Contrastive) | ✅ 完成 |
-| **Style Loss Module** | 2 | 风格embedding距离优化 | ✅ 完成 |
-| **Contrastive Learning** | 2 | 正负样本对比学习(InfoNCE) | ✅ 完成 |
-| **Context Detector** | 3 | 检测对话上下文(工作/生活/情感) | ✅ 完成 |
-| **Persona Selector** | 3 | 基于上下文选择人格 | ✅ 完成 |
-| **Conversation Memory** | 3 | 短期对话历史管理 | ✅ 完成 |
-| **Enhanced Prompt Builder** | 3 | 上下文+人格→提示词 | ✅ 完成 |
-| **Style Calibrator** | 3 | 语言风格微调 | ✅ 完成 |
-| **Fact Checker** | 3 | 事实准确性验证 | ✅ 完成 |
-| **Feedback Collector** | 4 | 收集用户反馈(👍/👎) | ✅ 完成 |
-| **Reward Model** | 4 | 多维度评分(准确性/风格/关系) | ✅ 完成 |
-| **Online Learner** | 4 | 增量更新人格 | ✅ 完成 |
-| **Drift Detector** | 4 | 检测人格漂移 | ✅ 完成 |
-| **A/B Testing** | 4 | 模型版本对比 | ✅ 完成 |
-| **Values Inferencer** | 5 | 价值观推理 | ✅ 完成 |
-| **Emotions Tracker** | 5 | 情感状态跟踪 | ✅ 完成 |
-| **Causal Reasoner** | 5 | 因果关系推理 | ✅ 完成 |
-| **Theory of Mind** | 6 | 心智理论建模 | ✅ 完成 |
-| **Narrative Generator** | 6 | 生命叙事生成 | ✅ 完成 |
-| **Model Quantization** | 7B.1 | INT8量化+剪枝 | ✅ 完成 |
-| **A/B Framework** | 7B.2 | 实验管理 | ✅ 完成 |
-| **Intelligent Cache** | 7B.3 | ML驱动缓存预热 | ✅ 完成 |
-| **Load Testing** | 7C.1 | 1000并发压测 | ✅ 完成 |
-| **Production Deploy** | 7C.2 | 自动化部署 | ✅ 完成 |
+| **Style Loss Module** | 2 | 风格embedding Cosine距离优化(权重0.3) | ✅ 完成 |
+| **Contrastive Learning** | 2 | InfoNCE对比学习损失(权重0.1) | ✅ 完成 |
+| **Context Detector** | 3 | 4维检测(时间/空间/社交/情感)+关键词模式匹配 | ✅ 完成 |
+| **Persona Selector** | 3 | 6层权重动态调整(专业场景vs亲密场景) | ✅ 完成 |
+| **Conversation Memory** | 3 | 3层记忆(短期10轮/中期话题/长期模式) | ✅ 完成 |
+| **Enhanced Prompt Builder** | 3 | 5组件融合(人格+上下文+记忆+关系+建议) | ✅ 完成 |
+| **Style Calibrator** | 3 | 正式度/幽默/emoji/长度动态校准 | ✅ 完成 |
+| **Fact Checker** | 3 | 时间逻辑+关系一致性验证 | ✅ 完成 |
+| **Feedback Collector** | 4 | 显式(👍👎评分)+隐式(编辑/重生成)反馈收集 | ✅ 完成 |
+| **Reward Model** | 4 | 4维评分(准确性/风格/关系/互动)+Gemini辅助 | ✅ 完成 |
+| **Online Learner** | 4 | 增量更新persona(>100样本触发自动训练) | ✅ 完成 |
+| **Drift Detector** | 4 | 人格漂移监测(阈值20%)+质量预警(阈值15%) | ✅ 完成 |
+| **A/B Testing** | 4 | 多版本对比+流量分配+t-test显著性检验 | ✅ 完成 |
+| **Values Inferencer** | 5 | 15类价值识别+冲突检测+优先级层级构建 | ✅ 完成 |
+| **Emotions Tracker** | 5 | 认知评价理论(Scherer 4维)+12种情感分类 | ✅ 完成 |
+| **Causal Reasoner** | 5 | 5种推理(因果/演绎/归纳/类比/溯因)+NetworkX知识图谱 | ✅ 完成 |
+| **Theory of Mind** | 6 | 3层透视递归(信念/意图/反应)+准确率跟踪 | ✅ 完成 |
+| **Narrative Generator** | 6 | 生命事件提取(10类)+转折点+12种主题+连贯性评估 | ✅ 完成 |
+| **Model Quantization** | 7B.1 | INT8量化+50%剪枝+知识蒸馏(大小-60%/速度+3.2x) | ✅ 完成 |
+| **A/B Framework** | 7B.2 | 实验管理+自动流量分配+实时指标聚合 | ✅ 完成 |
+| **Intelligent Cache** | 7B.3 | 4策略融合预热(频率0.4+时间0.3+预测0.2+协同0.1) | ✅ 完成 |
+| **Load Testing** | 7C.1 | Locust 1000并发+5种用户行为(p95<200ms) | ✅ 完成 |
+| **Production Deploy** | 7C.2 | Docker Compose 8容器+一键部署脚本+健康检查 | ✅ 完成 |
 
 ### 训练流程
 
